@@ -1,4 +1,5 @@
 """ Логика работы с базой данных """
+
 import logging
 from typing import Union
 from sqlalchemy import create_engine, Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean
