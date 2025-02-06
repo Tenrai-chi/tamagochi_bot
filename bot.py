@@ -3,6 +3,7 @@
 import logging
 import database
 import utilites
+import pet_condition_update
 from configparser import ConfigParser
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (ApplicationBuilder,
@@ -109,6 +110,11 @@ async def rename(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data['rename'] = True
 
 
+@ensure_user_registered
+async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await pet_condition_update.feed(update.effective_user, 'Овощной салат')
+
+
 async def process_user_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """ Обработчик сообщений.
         Передает управление другим функциям в зависимости от контекста
@@ -140,6 +146,7 @@ async def input_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
               f'3. Укладывать спать - /sleep 💤\n'
               f'4. Лечить меня, если я заболею - /heal 💊\n'
               f'5. Поменять мне имя - /rename ✏️\n'
+              f'6. Узнать как я себя чувствую - /check ❤️\n'
               f'Я с нетерпением жду, чтобы провести время с тобой!')
     await update.message.reply_text(answer)
     logging.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
@@ -160,12 +167,34 @@ async def input_name_for_rename(update: Update, context: ContextTypes.DEFAULT_TY
     logging.info(f'Пользователь {update.effective_user.id} переименовал питомца')
 
 
+@check_pet_exists
+async def check_pet_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """ Выдает состояние питомца """
+
+    pet = await database.get_user_tamagochi(update.effective_user)
+    answer = (f'Я себя чувствую вот так:\n'
+              f'Здоровье: {pet.health}\n'
+              f'Настроение: {pet.happiness}\n'
+              f'Чистота: {pet.grooming}\n'
+              f'Энергия: {pet.energy}\n'
+              f'Голод: {pet.hunger}\n'
+              )
+    if pet.sick:
+        answer += 'Я заболел('
+    else:
+        answer += 'Я здоров)'
+    await update.message.reply_text(answer)
+    logging.info(f'Пользователь {update.effective_user.id} проверил состояние питомца')
+
+
 def main():
     application = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
 
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('create_pet', create_pet))
     application.add_handler(CommandHandler('rename', rename))
+    application.add_handler(CommandHandler('feed', feed))
+    application.add_handler(CommandHandler('check_pet_stats', check_pet_stats))
     application.add_handler(CallbackQueryHandler(choose_pet))
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, process_user_message))

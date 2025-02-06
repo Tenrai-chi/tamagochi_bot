@@ -85,27 +85,36 @@ class UserTamagochi(Base):
     sick = Column(Boolean, nullable=True)
 
 
-# class TypeFood(Base):
-#     """ Таблица type_food.
-#         Хранит информацию о типах еды:
-#             - name - тип еды
-#             - up_stat_name - какую характеристику повышает
-#             - up_stat_point - на сколько повышает
-#             - down_stat_name - какую характеристику понижает
-#             - down_stat_point - на сколько понижает
-#     """
-#
-#     # __tablename__ = 'type_food'
-#
-#
-# class Food(Base):
-#     """ Таблица food.
-#         Хранит информацию о еде:
-#             - name - название
-#             - type_food - тип еды (type_food)
-#     """
-#
-#     # __tablename__ = 'food'
+class TypeFood(Base):
+    """ Таблица type_food.
+        Хранит информацию о типах еды:
+            - name - тип еды
+            - up_stat_name - какую характеристику повышает
+            - up_stat_point - на сколько повышает
+            - down_stat_name - какую характеристику понижает
+            - down_stat_point - на сколько понижает
+    """
+
+    __tablename__ = 'type_food'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(70), nullable=True)
+    up_state_name = Column(String(20), nullable=False)
+    up_stat_point = Column(Integer, nullable=False)
+    down_state_name = Column(String(20), nullable=False)
+    down_stat_point = Column(Integer, nullable=False)
+
+
+class Food(Base):
+    """ Таблица food.
+        Хранит информацию о еде:
+            - name - название
+            - type_food - тип еды (type_food)
+    """
+
+    __tablename__ = 'food'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(70), nullable=True)
+    type_food = Column(Integer, ForeignKey('type_food.id'))
 #
 #
 # class Reaction(Base):
@@ -221,3 +230,4 @@ async def rename(user_: _user, new_name: str) -> None:
         db_sess.commit()
 
 # print(get_types_pet())
+create_tables()
