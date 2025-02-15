@@ -4,7 +4,7 @@ import logging
 import json
 
 from configparser import ConfigParser
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from telegram import _user
 from typing import Union, List
@@ -131,25 +131,29 @@ async def create_trigger_and_func():
         при первом создании БД
     """
 
-    create_func_sql = ('CREATE OR REPLACE FUNCTION enforce_limits()'
-                       'RETURNS TRIGGER AS $$'
-                       'BEGIN'
-                       '    NEW.health = GREATEST(LEAST(NEW.happiness, 100), 0);'
-                       '    NEW.happiness = GREATEST(LEAST(NEW.happiness, 100), 0);'
-                       '    NEW.grooming = GREATEST(LEAST(NEW.grooming, 100), 0);'
-                       '    NEW.energy = GREATEST(LEAST(NEW.energy, 100), 0);'
-                       '    NEW.hunger = GREATEST(LEAST(NEW.hunger, 100), 0);'
-                       '    RETURN NEW;'
-                       'END;'
-                       '$$ LANGUAGE plpgsql;')
+    create_func_sql = """
+    CREATE OR REPLACE FUNCTION enforce_limits() 
+    RETURNS TRIGGER AS $$ 
+    BEGIN 
+        NEW.health = GREATEST(LEAST(NEW.happiness, 100), 0); 
+         NEW.happiness = GREATEST(LEAST(NEW.happiness, 100), 0); 
+         NEW.grooming = GREATEST(LEAST(NEW.grooming, 100), 0); 
+         NEW.energy = GREATEST(LEAST(NEW.energy, 100), 0); 
+         NEW.hunger = GREATEST(LEAST(NEW.hunger, 100), 0); 
+         RETURN NEW; 
+    END; 
+    $$ LANGUAGE plpgsql; 
+    """
 
-    create_trigger_sql = ('CREATE TRIGGER enforce_limits_trigger'
-                          'BEFORE INSERT OR UPDATE ON user_tamagochi'
-                          'FOR EACH ROW EXECUTE FUNCTION enforce_limits();')
+    create_trigger_sql = """
+    CREATE TRIGGER enforce_limits_trigger 
+    BEFORE INSERT OR UPDATE ON user_tamagochi 
+    FOR EACH ROW EXECUTE FUNCTION enforce_limits(); 
+    """
 
     with engine.connect() as connection:
-        connection.execute(create_func_sql)
-        connection.execute(create_trigger_sql)
+        connection.execute(text(create_func_sql))
+        connection.execute(text(create_trigger_sql))
 
 
 async def populate_type_food_table():
