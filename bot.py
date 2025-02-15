@@ -125,6 +125,8 @@ async def choose_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
 @check_user_registered
 async def rename_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """ /rename """
+
     await update.message.reply_text('Как ты меня хочешь назвать?')
     context.user_data['rename'] = True
 
@@ -132,7 +134,7 @@ async def rename_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 @check_pet_exists
 async def feed(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """ /feed """
-    # await pet_condition_update.feed(update.effective_user, 'Овощной салат')
+
     foods = await get_all_foods()
     keyboard = []
     for food in foods:

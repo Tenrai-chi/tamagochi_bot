@@ -115,22 +115,28 @@ class Food(Base):
     type_food = relationship('TypeFood', back_populates='food')
 
 
-# class Reaction(Base):
-#     """ Таблица reaction.
-#         Хранит реплики питомца на различные действия:
-#             - active - какое действие
-#             - speech - сообщение реакция
-#     """
-#
-#     # __tablename__ = 'reaction'
-#
-#
-# class HidingPlace(Base):
-#     """ Таблица hiding_place.
-#         Хранит места для пряток и реакцию на поиск:
-#             - type_pet - тип питомца, который может здесь прятаться
-#             - place - место для пряток
-#             - speech - реакция на поимку
-#     """
-#
-#     # __tablename__ = 'hiding_place'
+class Reaction(Base):
+    """ Таблица reaction.
+        Хранит реплики питомца на различные действия:
+            - action - какое действие
+            - reaction - сообщение реакция
+    """
+
+    __tablename__ = 'reaction'
+    id = Column(Integer, primary_key=True)
+    action = Column(String(100), nullable=True)
+    reaction = Column(String(300), nullable=True)
+
+
+class HidingPlace(Base):
+    """ Таблица hiding_place.
+        Хранит места для пряток и реакцию на поиск:
+            - place - место для пряток
+            - reaction - реакция на поимку
+    """
+
+    __tablename__ = 'hiding_place'
+    id = Column(Integer, primary_key=True)
+    place = Column(String(100), nullable=True)
+    reaction_found = Column(String(300), nullable=True)
+
