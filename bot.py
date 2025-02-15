@@ -23,7 +23,7 @@ from telegram.ext import (ApplicationBuilder,
 
 
 config = ConfigParser()
-config.read('config.ini')
+config.read('database/config.ini')
 TELEGRAM_BOT_TOKEN = config['telegram']['bot_token']
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)

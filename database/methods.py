@@ -5,30 +5,46 @@ import json
 
 from configparser import ConfigParser
 from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from telegram import _user
 from typing import Union, List
 
 from database.models import User, TypeTamagochi, UserTamagochi, TypeFood, Food, Reaction, HidingPlace
 
-config = ConfigParser()
-config.read('../config.ini')
-db_host = config['postgresql']['host']
-db_name = config['postgresql']['name']
-db_user = config['postgresql']['user']
-db_password = config['postgresql']['password']
+# config = ConfigParser()
+# config.read('config.ini')
+# db_host = config['postgresql']['host']
+# db_name = config['postgresql']['name']
+# db_user = config['postgresql']['user']
+# db_password = config['postgresql']['password']
 
-DATABASE_URL = f'postgresql+pg8000://{db_user}:{db_password}@{db_host}/{db_name}'
-engine = create_engine(DATABASE_URL)
+
+# DATABASE_URL = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}'
+# engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
 def session_local() -> Session:
     """ Создание сессии в SQLAlchemy """
-
+    config = ConfigParser()
+    config.read('config.ini')
+    db_host = config['postgresql']['host']
+    db_name = config['postgresql']['name']
+    db_user = config['postgresql']['user']
+    db_password = config['postgresql']['password']
+    database_url = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}'
+    engine = create_engine(database_url)
     session = sessionmaker(bind=engine)
     return session()
+
+
+async def session_local() -> AsyncSession:
+    """Создает новую асинхронную сессию для каждого запроса."""
+    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with async_session() as session:
+        yield session
 
 
 async def get_types_pet() -> List[str]:
@@ -116,14 +132,18 @@ async def get_all_foods() -> List[str]:
         return name_foods
 
 
-def create_tables() -> None:
+async def create_tables() -> None:
     """ Создание таблиц в базе данных """
 
-    try:
-        Base.metadata.create_all(engine)
-        logging.info(f'Создание таблиц прошло успешно')
-    except Exception as e:
-        logging.error(e)
+    # try:
+    #     Base.metadata.create_all(engine)
+    #     logging.info(f'Создание таблиц прошло успешно')
+    # except Exception as e:
+    #     logging.error(e)
+    # async with engine.connect() as conn:
+    async with session_local() as sess:
+        await sess.run_sync(Base.metadata.create_all)
+    logging.info("Таблицы созданы успешно.")
 
 
 async def create_trigger_and_func():
@@ -206,7 +226,7 @@ async def populate_food_table():
 async def initialize_database():
     """ Первоначальное создание и заполнение базы данныз для развертывания """
 
-    create_tables()
+    await create_tables()
     await create_trigger_and_func()
     await populate_type_food_table()
     await populate_food_table()
@@ -250,3 +270,6 @@ async def populate_hiding_place_table():
             new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
             sess.add(new)
         sess.commit()
+
+
+# asyncio.run(create_tables())
