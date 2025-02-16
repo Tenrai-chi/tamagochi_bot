@@ -1,13 +1,16 @@
 """ Логика работы бота """
-
+import asyncio
 import logging
+import os
+from dotenv import load_dotenv
 from database.methods import (get_user,
                               create_user,
                               create_user_tamagochi,
                               get_user_tamagochi,
                               get_types_pet,
                               rename,
-                              get_all_foods)
+                              get_all_foods,
+                              initialize_database)
 
 from database.pet_condition_update import feed_pet
 import utilites
@@ -22,14 +25,22 @@ from telegram.ext import (ApplicationBuilder,
                           CallbackQueryHandler)
 
 
-config = ConfigParser()
-config.read('database/config.ini')
-TELEGRAM_BOT_TOKEN = config['telegram']['bot_token']
+# config = ConfigParser()
+# config.read('database/config.ini')
+load_dotenv()
+TELEGRAM_BOT_TOKEN = os.getenv('bot_token')
+# TELEGRAM_BOT_TOKEN = config['telegram']['bot_token']
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 httpx_logger = logging.getLogger("httpx")
 httpx_logger.setLevel(logging.WARNING)
+
+
+async def create_database():
+    """ Функция, которая создает всю базу данных по команде """
+
+    await initialize_database()
 
 
 def check_user_registered(func):
@@ -261,4 +272,5 @@ def main():
 
 # Запуск бота из проекта
 if __name__ == '__main__':
-    main()
+    # main()
+    asyncio.run(initialize_database())

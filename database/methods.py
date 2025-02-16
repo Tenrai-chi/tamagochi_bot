@@ -2,9 +2,12 @@
 import asyncio
 import logging
 import json
+import os
+import threading
+import time
 
-from configparser import ConfigParser
-from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Identity
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from telegram import _user
@@ -12,37 +15,23 @@ from typing import Union, List
 
 from database.models import User, TypeTamagochi, UserTamagochi, TypeFood, Food, Reaction, HidingPlace
 
-# config = ConfigParser()
-# config.read('config.ini')
-# db_host = config['postgresql']['host']
-# db_name = config['postgresql']['name']
-# db_user = config['postgresql']['user']
-# db_password = config['postgresql']['password']
+load_dotenv()
+db_host = os.getenv('db_host')
+db_name = os.getenv('db_name')
+db_user = os.getenv('db_user')
+db_password = os.getenv('db_password')
 
 
-# DATABASE_URL = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}'
+DATABASE_URL = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}:5432/{db_name}'
 # engine = create_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL)
 Base = declarative_base()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
-def session_local() -> Session:
-    """ Создание сессии в SQLAlchemy """
-    config = ConfigParser()
-    config.read('config.ini')
-    db_host = config['postgresql']['host']
-    db_name = config['postgresql']['name']
-    db_user = config['postgresql']['user']
-    db_password = config['postgresql']['password']
-    database_url = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}'
-    engine = create_engine(database_url)
-    session = sessionmaker(bind=engine)
-    return session()
-
-
 async def session_local() -> AsyncSession:
     """Создает новую асинхронную сессию для каждого запроса."""
-    async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async_session = sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
     async with async_session() as session:
         yield session
 
@@ -135,15 +124,18 @@ async def get_all_foods() -> List[str]:
 async def create_tables() -> None:
     """ Создание таблиц в базе данных """
 
-    # try:
-    #     Base.metadata.create_all(engine)
-    #     logging.info(f'Создание таблиц прошло успешно')
-    # except Exception as e:
-    #     logging.error(e)
-    # async with engine.connect() as conn:
-    async with session_local() as sess:
-        await sess.run_sync(Base.metadata.create_all)
-    logging.info("Таблицы созданы успешно.")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all, tables=[TypeFood.__table__,
+                                                                  User.__table__,
+                                                                  TypeTamagochi.__table__,
+                                                                  UserTamagochi.__table__,
+                                                                  Food.__table__,
+                                                                  Reaction.__table__,
+                                                                  HidingPlace.__table__])
+        logging.info('Таблицы успешно созданы')
+    except Exception as e:
+        logging.error(f"Ошибка при создании триггера: {e}")
 
 
 async def create_trigger_and_func():
@@ -170,75 +162,81 @@ async def create_trigger_and_func():
     BEFORE INSERT OR UPDATE ON user_tamagochi 
     FOR EACH ROW EXECUTE FUNCTION enforce_limits(); 
     """
-
-    with engine.connect() as connection:
-        connection.execute(text(create_func_sql))
-        connection.execute(text(create_trigger_sql))
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(create_func_sql))
+            await conn.execute(text(create_trigger_sql))
+            logging.info('Триггер для user_tamagochi успешно создан')
+    except Exception as e:
+        logging.error(f'Ошибка при создании триггера: {e}')
 
 
 async def populate_type_food_table():
     """ Заполнение таблицы type_food при первом создании БД """
 
-    # Base.metadata.tables[TypeFood.__tablename__].create(engine, checkfirst=True)
-
-    with session_local() as sess:
-        food_types = [
-            TypeFood(name='Полезная',
-                     up_state_name='hunger',
-                     up_state_point=20,
-                     down_state_name='happiness',
-                     down_state_point=-5),
-            TypeFood(name='Обычная',
-                     up_state_name='hunger',
-                     up_state_point=25,
-                     down_state_name='energy',
-                     down_state_point=-10),
-            TypeFood(name='Вредная',
-                     up_state_name='hunger',
-                     up_state_point=35,
-                     down_state_name='health',
-                     down_state_point=-10),
-        ]
-        sess.add(food_types)
-        sess.commit()
+    try:
+        async for sess in session_local():
+            food_types = [
+                TypeFood(name='Полезная',
+                         up_state_name='hunger',
+                         up_state_point=20,
+                         down_state_name='happiness',
+                         down_state_point=-5),
+                TypeFood(name='Обычная',
+                         up_state_name='hunger',
+                         up_state_point=25,
+                         down_state_name='energy',
+                         down_state_point=-10),
+                TypeFood(name='Вредная',
+                         up_state_name='hunger',
+                         up_state_point=35,
+                         down_state_name='health',
+                         down_state_point=-10),
+            ]
+            sess.add_all(food_types)
+            await sess.commit()
+            logging.info('Таблица type_food успешно заполнена')
+    except Exception as e:
+        logging.error(f'Ошибка при заполнении таблицы type_food: {e}')
 
 
 async def populate_food_table():
     """ Заполнение таблицы food при первом создании БД """
 
-    # Base.metadata.tables[Food.__tablename__].create(engine, checkfirst=True)
-
-    with session_local() as sess:
-        food_types = [
-            Food(name='Овощной салат', type_food_id=1),
-            Food(name='Фрукты', type_food_id=1),
-            Food(name='Овсяная каша', type_food_id=1),
-            Food(name='Курица', type_food_id=2),
-            Food(name='Морская рыба', type_food_id=2),
-            Food(name='Бургер', type_food_id=3),
-            Food(name='Нагетсы', type_food_id=3),
-            Food(name='Шоколадный торт', type_food_id=3),
-        ]
-        sess.add(food_types)
-        sess.commit()
+    try:
+        async for sess in session_local():
+            food_types = [
+                Food(name='Овощной салат', type_food_id=1),
+                Food(name='Фрукты', type_food_id=1),
+                Food(name='Овсяная каша', type_food_id=1),
+                Food(name='Курица', type_food_id=2),
+                Food(name='Морская рыба', type_food_id=2),
+                Food(name='Бургер', type_food_id=3),
+                Food(name='Нагетсы', type_food_id=3),
+                Food(name='Шоколадный торт', type_food_id=3),
+            ]
+            sess.add_all(food_types)
+            await sess.commit()
+    except Exception as e:
+        logging.error(f'Ошибка при заполнении таблицы food: {e}')
 
 
 async def initialize_database():
     """ Первоначальное создание и заполнение базы данныз для развертывания """
 
-    await create_tables()
-    await create_trigger_and_func()
-    await populate_type_food_table()
+    # await create_tables()
+    # await create_trigger_and_func()
+    # await populate_type_food_table()
     await populate_food_table()
-    await populate_reaction_table()
-    await populate_hiding_place_table()
+    # await populate_reaction_table()
+    # await populate_hiding_place_table()
 
 
-def create_table():
-    """ Создание таблиц reaction и hiding_place"""
-
-    Reaction.__table__.create(engine, checkfirst=True)  # Создание таблицы Reaction
-    HidingPlace.__table__.create(engine, checkfirst=True)
+# def create_table():
+#     """ Создание таблиц reaction и hiding_place"""
+#
+#     Reaction.__table__.create(engine, checkfirst=True)  # Создание таблицы Reaction
+#     HidingPlace.__table__.create(engine, checkfirst=True)
 
 
 async def populate_reaction_table():
@@ -270,6 +268,3 @@ async def populate_hiding_place_table():
             new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
             sess.add(new)
         sess.commit()
-
-
-# asyncio.run(create_tables())
