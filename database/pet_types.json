@@ -1,0 +1,40 @@
+{
+  "types": [
+    {
+      "name": "Котенок",
+      "health_max": 100,
+      "happiness_max": 100,
+      "grooming_max": 100,
+      "energy_max": 100,
+      "hunger_max": 100,
+      "image_url": "https://i.pinimg.com/originals/47/c4/50/47c4504168d7181c7c52430efc7a4a37.jpg"
+    },
+    {
+      "name": "Щенок",
+      "health_max": 100,
+      "happiness_max": 100,
+      "grooming_max": 100,
+      "energy_max": 100,
+      "hunger_max": 100,
+      "image_url": "https://cultmir.ru/wp-content/uploads/milye-narisovannye-sobachki-4.webp"
+    },
+    {
+      "name": "Жабка",
+      "health_max": 100,
+      "happiness_max": 100,
+      "grooming_max": 100,
+      "energy_max": 100,
+      "hunger_max": 100,
+      "image_url": "https://i.pinimg.com/originals/e7/61/74/e76174024deb57825a2b36a2cd51a53b.jpg"
+    },
+    {
+      "name": "Волчонок",
+      "health_max": 100,
+      "happiness_max": 100,
+      "grooming_max": 100,
+      "energy_max": 100,
+      "hunger_max": 100,
+      "image_url": "https://avatars.dzeninfra.ru/get-zen_doc/4727350/pub_634eab8cac836c2ff9494949_634eacb65c56c9271b140db9/scale_1200"
+    }
+  ]
+}

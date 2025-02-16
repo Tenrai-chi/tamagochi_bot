@@ -3,11 +3,9 @@ import asyncio
 import logging
 import json
 import os
-import threading
-import time
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text, MetaData, Table, Column, Integer, String, Identity
+from sqlalchemy import (select, create_engine, text, MetaData, Table, Column, Integer, String, Identity)
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from telegram import _user
@@ -23,7 +21,6 @@ db_password = os.getenv('db_password')
 
 
 DATABASE_URL = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}:5432/{db_name}'
-# engine = create_engine(DATABASE_URL)
 engine = create_async_engine(DATABASE_URL)
 Base = declarative_base()
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -39,19 +36,28 @@ async def session_local() -> AsyncSession:
 async def get_types_pet() -> List[str]:
     """ Возвращает список доступных типов питомцев """
 
-    with session_local() as db_sess:
-        pets_types = db_sess.query(TypeTamagochi.name).all()
-        name_pets_types = [name for (name,) in pets_types]
-
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
+        # pets_types = await db_sess.query(TypeTamagochi.name).all()
+        # name_pets_types = [name for (name,) in pets_types]
+        result = await db_sess.execute(select(TypeTamagochi.name))
+        name_pets_types = [name for name in result.scalars().all()]
         return name_pets_types
 
 
 async def create_user_tamagochi(user_telegram_id: int, name: str, type_pet: str) -> UserTamagochi:
     """ Создает питомца у пользователя """
 
-    with session_local() as db_sess:
-        user = db_sess.query(User).filter(User.user_telegram_id == user_telegram_id).first()
-        pet_type_info = db_sess.query(TypeTamagochi).filter(TypeTamagochi.name == type_pet).first()
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
+        # user = await db_sess.query(User).filter(User.user_telegram_id == user_telegram_id).first()
+        user_result = await db_sess.execute(select(User)
+                                            .where(User.user_telegram_id == user_telegram_id))
+        user = user_result.scalars().first()
+        # pet_type_info = await db_sess.query(TypeTamagochi).filter(TypeTamagochi.name == type_pet).first()
+        pet_type_result = await db_sess.execute(select(TypeTamagochi)
+                                                .where(TypeTamagochi.name == type_pet))
+        pet_type_info = pet_type_result.scalars().first()
         pet = UserTamagochi(owner=user,
                             name=name,
                             type_pet=pet_type_info,
@@ -62,31 +68,35 @@ async def create_user_tamagochi(user_telegram_id: int, name: str, type_pet: str)
                             hunger=pet_type_info.hunger_max,
                             sick=False,)
         db_sess.add(pet)
-        db_sess.commit()
-        db_sess.refresh(pet)
+        await db_sess.commit()
+        await db_sess.refresh(pet)
         return pet
 
 
 async def create_user(user: _user) -> User:
-    """ Возвращает пользователя. Если его нет, то создает """
+    """ Создает пользователя """
 
-    with session_local() as db_sess:
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
         user = User(user_telegram_id=user.id,
                     username=user.username,
                     last_request=None,)
 
         db_sess.add(user)
-        db_sess.commit()
-        db_sess.refresh(user)
+        await db_sess.commit()
+        await db_sess.refresh(user)
         return user
 
 
 async def get_user(user: _user) -> Union[User, None]:
     """ Возвращает пользователя """
 
-    with session_local() as db_sess:
-        user = db_sess.query(User).filter(User.user_telegram_id == user.id).first()
-
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
+        # user = await db_sess.query(User).filter(User.user_telegram_id == user.id).first()
+        result = await db_sess.execute(select(User)
+                                       .where(User.user_telegram_id == user.id))
+        user = result.scalars().first()
         return user
 
 
@@ -95,8 +105,13 @@ async def get_user_tamagochi(user: _user) -> Union[UserTamagochi, None]:
         Если питомца нет, то вернет None
     """
 
-    with session_local() as db_sess:
-        user_pet = db_sess.query(UserTamagochi).join(User).filter(User.user_telegram_id == user.id).first()
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
+        user_pet_result = await db_sess.execute(select(UserTamagochi)
+                                                .join(User)
+                                                .where(User.user_telegram_id == user.id)
+                                                )
+        user_pet = user_pet_result.scalars().first()
 
         return user_pet
 
@@ -104,20 +119,27 @@ async def get_user_tamagochi(user: _user) -> Union[UserTamagochi, None]:
 async def rename(user: _user, new_name: str) -> None:
     """ Переименовывает питомца пользователя """
 
-    with session_local() as db_sess:
-        pet = db_sess.query(UserTamagochi).join(User).filter(User.user_telegram_id == user.id).first()
+    # with session_local() as db_sess:
+    async for db_sess in session_local():
+        pet_result = await db_sess.execute(select(UserTamagochi)
+                                           .join(User)
+                                           .where(User.user_telegram_id == user.id)
+                                           )
+        pet = pet_result.scalars().first()
         pet.name = new_name
-        db_sess.commit()
+        await db_sess.commit()
 
 
 async def get_all_foods() -> List[str]:
     """ Возвращает всю доступную еду для питомца """
 
-    with session_local() as db_sess:
-        foods = db_sess.query(Food).all()
-        name_foods = []
-        for food in foods:
-            name_foods.append(food.name)
+    async for db_sess in session_local():
+        foods_result = await db_sess.execute(select(Food))
+        foods = foods_result.scalars().all()
+        # name_foods = []
+        # for food in foods:
+        #     name_foods.append(food.name)
+        name_foods = [food.name for food in foods]
         return name_foods
 
 
@@ -217,6 +239,7 @@ async def populate_food_table():
             ]
             sess.add_all(food_types)
             await sess.commit()
+            logging.info('Таблица food успешно заполнена')
     except Exception as e:
         logging.error(f'Ошибка при заполнении таблицы food: {e}')
 
@@ -224,47 +247,77 @@ async def populate_food_table():
 async def initialize_database():
     """ Первоначальное создание и заполнение базы данныз для развертывания """
 
-    # await create_tables()
-    # await create_trigger_and_func()
-    # await populate_type_food_table()
+    await create_tables()
+    await create_trigger_and_func()
+    await populate_type_food_table()
     await populate_food_table()
-    # await populate_reaction_table()
-    # await populate_hiding_place_table()
-
-
-# def create_table():
-#     """ Создание таблиц reaction и hiding_place"""
-#
-#     Reaction.__table__.create(engine, checkfirst=True)  # Создание таблицы Reaction
-#     HidingPlace.__table__.create(engine, checkfirst=True)
+    await populate_reaction_table()
+    await populate_hiding_place_table()
+    await populate_type_tamagochi()
 
 
 async def populate_reaction_table():
     """ Заполняет таблицу reaction """
 
-    with open('pet_reaction.json', 'r', encoding='utf-8') as js:
+    file_path = os.path.join(os.path.dirname(__file__), 'pet_reaction.json')
+    with open(file_path, 'r', encoding='utf-8') as js:
         data = json.load(js)
     action_and_reaction = data.get('responses', [])
 
-    with session_local() as sess:
-        for act_react in action_and_reaction:
-            action = act_react['action']
-            reactions = act_react['reaction']
-            for react in reactions:
-                new = Reaction(action=action, reaction=react)
-                sess.add(new)
-        sess.commit()
+    try:
+        async for sess in session_local():
+            for act_react in action_and_reaction:
+                action = act_react['action']
+                reactions = act_react['reaction']
+                for react in reactions:
+                    new = Reaction(action=action, reaction=react)
+                    sess.add(new)
+            await sess.commit()
+            logging.info('Таблица reaction успешно заполнена')
+    except Exception as e:
+        logging.error(f'Ошибка при заполнении таблицы reaction: {e}')
 
 
 async def populate_hiding_place_table():
     """ Заполняет таблицу hiding_place """
 
-    with open('places.json', 'r', encoding='utf-8') as js:
+    file_path = os.path.join(os.path.dirname(__file__), 'places.json')
+    with open(file_path, 'r', encoding='utf-8') as js:
         data = json.load(js)
     places_and_reactions = data.get('hiding_places', [])
 
-    with session_local() as sess:
-        for place_react in places_and_reactions:
-            new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
-            sess.add(new)
-        sess.commit()
+    try:
+        async for sess in session_local():
+            for place_react in places_and_reactions:
+                new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
+                sess.add(new)
+            await sess.commit()
+            logging.info('Таблица hiding_place успешно заполнена')
+    except Exception as e:
+        logging.error(f'Ошибка при заполнении таблицы hiding_place: {e}')
+
+
+async def populate_type_tamagochi():
+    """ Заполняет таблицу type_tamagochi """
+
+    file_path = os.path.join(os.path.dirname(__file__), 'pet_types.json')
+    with open(file_path, 'r', encoding='utf-8') as js:
+        data = json.load(js)
+    pet_types = data.get('types', [])
+
+    try:
+        async for sess in session_local():
+            for pet_type in pet_types:
+                new = TypeTamagochi(name=pet_type['name'],
+                                    health_max=pet_type['health_max'],
+                                    happiness_max=pet_type['happiness_max'],
+                                    grooming_max=pet_type['grooming_max'],
+                                    energy_max=pet_type['energy_max'],
+                                    hunger_max=pet_type['hunger_max'],
+                                    image_url=pet_type['image_url'],
+                                    )
+                sess.add(new)
+            await sess.commit()
+            logging.info('Таблица type_tamagochi успешно заполнена')
+    except Exception as e:
+        logging.error(f'Ошибка при заполнении таблицы type_tamagochi: {e}')

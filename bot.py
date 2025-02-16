@@ -1,4 +1,5 @@
 """ Логика работы бота """
+
 import asyncio
 import logging
 import os
@@ -15,7 +16,6 @@ from database.methods import (get_user,
 from database.pet_condition_update import feed_pet
 import utilites
 from database import pet_condition_update
-from configparser import ConfigParser
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (ApplicationBuilder,
                           ContextTypes,
@@ -24,12 +24,8 @@ from telegram.ext import (ApplicationBuilder,
                           MessageHandler,
                           CallbackQueryHandler)
 
-
-# config = ConfigParser()
-# config.read('database/config.ini')
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('bot_token')
-# TELEGRAM_BOT_TOKEN = config['telegram']['bot_token']
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -37,10 +33,14 @@ httpx_logger = logging.getLogger("httpx")
 httpx_logger.setLevel(logging.WARNING)
 
 
-async def create_database():
-    """ Функция, которая создает всю базу данных по команде """
+async def create_database(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ /initialize_database
+        XLir3HJkIDRsFyM - команда для запуска из телеграмм бота (поменять на более безопасный вызов не из бота)
+    """
 
     await initialize_database()
+    await update.message.reply_text('База данных создана')
+    logging.info(f'Пользователь {update.effective_user.id} создал и заполнил бд')
 
 
 def check_user_registered(func):
@@ -272,5 +272,4 @@ def main():
 
 # Запуск бота из проекта
 if __name__ == '__main__':
-    # main()
-    asyncio.run(initialize_database())
+    main()
