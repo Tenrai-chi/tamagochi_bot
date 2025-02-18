@@ -1,0 +1,36 @@
+{
+    "responses": [
+        {
+            "name": "Овощной салат",
+            "type_food_id": 1
+        },
+        {
+            "name": "Фрукты",
+            "type_food_id": 1
+        },
+        {
+            "name": "Овсяная каша",
+            "type_food_id": 1
+        },
+        {
+            "name": "Курица",
+            "type_food_id": 2
+        },
+        {
+            "name": "Морская рыба",
+            "type_food_id": 2
+        },
+        {
+            "name": "Бургер",
+            "type_food_id": 3
+        },
+        {
+            "name": "Нагетсы",
+            "type_food_id": 3
+        },
+        {
+            "name": "Шоколадный торт",
+            "type_food_id": 3
+        }
+    ]
+}

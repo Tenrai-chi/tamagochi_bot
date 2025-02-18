@@ -1,0 +1,25 @@
+{
+    "responses": [
+        {
+            "name": "Полезная",
+            "up_state_name": "hunger",
+            "up_state_point": 20,
+            "down_state_name": "energy",
+            "down_state_point": -5
+        },
+        {
+            "name": "Обычная",
+            "up_state_name": "hunger",
+            "up_state_point": 25,
+            "down_state_name": "grooming",
+            "down_state_point": -10
+        },
+        {
+            "name": "Вредная",
+            "up_state_name": "hunger",
+            "up_state_point": 35,
+            "down_state_name": "health",
+            "down_state_point": -10
+        }
+    ]
+}
