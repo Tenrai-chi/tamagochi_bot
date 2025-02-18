@@ -21,7 +21,8 @@ class User(Base):
 
     user_pet = relationship('UserTamagochi',
                             back_populates='owner',
-                            uselist=False)
+                            uselist=False,
+                            cascade='all, delete')
 
 
 class TypeTamagochi(Base):
@@ -52,9 +53,9 @@ class TypeTamagochi(Base):
 class UserTamagochi(Base):
     """ Таблица user_tamagochi.
         Хранит информацию о питомцах пользователей:
-            - owner (user) - хозяин
+            - owner - хозяин (user)
             - name - имя
-            - type (type_tamagochi) - тип питомца
+            - type - тип питомца (type_tamagochi)
             - health - текущее здоровье
             - happiness - текущее настроение
             - grooming - текущая чистота
