@@ -20,10 +20,11 @@ from database.methods import (get_user,
                               get_types_pet,
                               rename,
                               get_all_foods,
-                              update_user_last_request)
+                              update_user_last_request,
+                              pet_is_sleep)
 from database.create_and_populate_db import initialize_database
 
-from database.pet_condition_update import feed_pet
+from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep
 from utilites import validation_name
 
 
@@ -59,6 +60,22 @@ def check_pet_exists(func):
         if pet is None:
             await update.message.reply_text('У вас нет питомца')
             logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, который его не имеет')
+            return
+        else:
+            return await func(update, context)
+    return wrapper
+
+
+def check_pet_is_sleep(func):
+    """ Декоратор.
+        Проверяет спит ли питомец на данный момент
+    """
+
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        is_sleep = await pet_is_sleep(update.effective_user)
+        if is_sleep['sleep'] is True:
+            await update.message.reply_text(is_sleep['reaction'])
+            logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец спит')
         else:
             return await func(update, context)
     return wrapper
@@ -76,6 +93,10 @@ class PetBot:
         self.application.add_handler(CommandHandler('create_pet', self.create_pet))
         self.application.add_handler(CommandHandler('rename', self.rename_pet))
         self.application.add_handler(CommandHandler('feed', self.feed))
+        self.application.add_handler(CommandHandler('sleep', self.sleep_pet))
+        self.application.add_handler(CommandHandler('therapy', self.therapy))
+        self.application.add_handler(CommandHandler('grooming', self.grooming_pet))
+        self.application.add_handler(CommandHandler('XLir3HJkIDRsFyM', self.create_database))
         self.application.add_handler(CommandHandler('check', self.check_pet_stats))
         self.application.add_handler(CallbackQueryHandler(self.choose_pet, pattern=r'pet_.*$'))
         self.application.add_handler(CallbackQueryHandler(self.choose_food, pattern=r'food_.*$'))
@@ -108,16 +129,16 @@ class PetBot:
         logging.info(f'Пользователь {update.effective_user.id} /start')
 
     @staticmethod
-    @check_user_registered
-    async def create_database(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def create_database(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """ /initialize_database
             XLir3HJkIDRsFyM - команда для запуска из телеграмм бота (поменять на более безопасный вызов не из бота)
         """
-
-        pass
+        await initialize_database()
+        await update.message.reply_text('Создана бд')
 
     @staticmethod
     @check_pet_exists
+    @check_pet_is_sleep
     async def play_with_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /play
             Игра с питомцем
@@ -127,30 +148,60 @@ class PetBot:
 
     @staticmethod
     @check_pet_exists
+    @check_pet_is_sleep
     async def grooming_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /grooming
             Мытье питомца
         """
 
-        pass
+        user_pet = await grooming_pet(update.effective_user)
+        answer = (f'{user_pet["reaction"]}\n'
+                  f'Я себя чувствую вот так:\n'
+                  f'Здоровье: {user_pet["health"]}\n'
+                  f'Настроение: {user_pet["happiness"]}\n'
+                  f'Чистота: {user_pet["grooming"]}\n'
+                  f'Энергия: {user_pet["energy"]}\n'
+                  f'Голод: {user_pet["hunger"]}\n'
+                  )
+        if user_pet['sick']:
+            answer += 'Я заболел('
+        else:
+            answer += 'Я здоров)'
+        await context.bot.send_message(update.effective_user.id, answer)
 
     @staticmethod
     @check_pet_exists
+    @check_pet_is_sleep
     async def therapy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """ /heal_pet
+        """ /therapy
             Лечение питомца
         """
 
-        pass
+        user_pet = await therapy(update.effective_user)
+        answer = (f'{user_pet["reaction"]}\n'
+                  f'Я себя чувствую вот так:\n'
+                  f'Здоровье: {user_pet["health"]}\n'
+                  f'Настроение: {user_pet["happiness"]}\n'
+                  f'Чистота: {user_pet["grooming"]}\n'
+                  f'Энергия: {user_pet["energy"]}\n'
+                  f'Голод: {user_pet["hunger"]}\n'
+                  )
+        if user_pet['sick']:
+            answer += 'Я заболел('
+        else:
+            answer += 'Я здоров)'
+        await context.bot.send_message(update.effective_user.id, answer)
 
     @staticmethod
     @check_pet_exists
+    @check_pet_is_sleep
     async def sleep_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /sleep
             Отправляет питомца спать
         """
 
-        pass
+        pet = await sleep(update.effective_user)
+        await context.bot.send_message(update.effective_user.id, pet['reaction'])
 
     @staticmethod
     @check_user_registered
@@ -192,7 +243,7 @@ class PetBot:
             pet_type = query.data.split('_')[1]
             context.user_data['pet_type'] = pet_type
 
-            await query.message.reply_text('Выберите имя для вашего питомца:')
+            await context.bot.send_message(update.effective_user.id, 'Выберите имя для вашего питомца:')
 
             logging.info(f'Пользователь {update.effective_user.id} создал питомца {pet_type}')
 
@@ -211,6 +262,7 @@ class PetBot:
 
     @staticmethod
     @check_pet_exists
+    @check_pet_is_sleep
     async def feed(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
         """ /feed.
             Предлагает пользователю выбрать какой едой покормить питомца
@@ -225,7 +277,7 @@ class PetBot:
         await update.message.reply_text('Чем ты меня покормишь?', reply_markup=reply_markup)
 
     @staticmethod
-    async def choose_food(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    async def choose_food(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ Сохранение выбора еды.
             Удаляет варианты ответа из диалога.
             Запускает обновление характеристик питомца
@@ -249,7 +301,7 @@ class PetBot:
             answer += 'Я заболел('
         else:
             answer += 'Я здоров)'
-        await query.message.reply_text(answer)
+        await context.bot.send_message(update.effective_user.id, answer)
 
         logging.info(f'Пользователь {update.effective_user.id} покормил питомца')
 
@@ -273,8 +325,9 @@ class PetBot:
         pet_name = update.message.text
         pet_type = context.user_data.get('pet_type')
         context.user_data['pet_name'] = pet_name
+        logging.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
 
-        await create_user_tamagochi(update.effective_user.id,
+        await create_user_tamagochi(update.effective_user,
                                     pet_name,
                                     pet_type)
         answer = (f'Привет! Я твой новый питомец {pet_type} по имени {pet_name} 🐾\n!'
@@ -287,7 +340,6 @@ class PetBot:
                   f'6. Узнать как я себя чувствую - /check ❤️\n'
                   f'Я с нетерпением жду, чтобы провести время с тобой!')
         await update.message.reply_text(answer)
-        logging.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
 
         del context.user_data['pet_type']
         del context.user_data['pet_name']

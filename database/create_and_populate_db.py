@@ -1,18 +1,18 @@
-import asyncio
+""" Создание и заполнение таблиц в бд """
+
 import json
 import logging
 import os
 
 from sqlalchemy import text
 
-from .methods import engine, Base, session_local
-from .models import (User,
-                     TypeTamagochi,
-                     UserTamagochi,
+from .methods import engine, session_local
+from .models import (TypeTamagochi,
                      TypeFood,
                      Food,
                      Reaction,
-                     HidingPlace)
+                     HidingPlace,
+                     Base)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -35,16 +35,11 @@ async def create_tables() -> None:
 
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all, tables=[TypeFood.__table__,
-                                                                  User.__table__,
-                                                                  TypeTamagochi.__table__,
-                                                                  UserTamagochi.__table__,
-                                                                  Food.__table__,
-                                                                  Reaction.__table__,
-                                                                  HidingPlace.__table__])
+            print('Начинаем создание таблиц')
+            await conn.run_sync(Base.metadata.create_all)
         logging.info('Таблицы успешно созданы')
     except Exception as e:
-        logging.error(f'Ошибка при создании триггера: {e}')
+        logging.error(f'Ошибка при создании таблиц: {e}')
 
 
 async def create_trigger_and_func() -> None:

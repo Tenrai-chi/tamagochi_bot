@@ -62,6 +62,8 @@ class UserTamagochi(Base):
             - energy - текущая энергия
             - hunger - текущая сытость
             - sick - болезнь
+            - sleep - спит ли сейчас питомец
+            - time_sleep - время, когда уложили питомца спать
     """
 
     __tablename__ = 'user_tamagochi'
@@ -75,6 +77,8 @@ class UserTamagochi(Base):
     energy = Column(Integer, nullable=False)
     hunger = Column(Integer, nullable=False)
     sick = Column(Boolean, nullable=True)
+    sleep = Column(Boolean, nullable=True, default=False)
+    time_sleep = Column(DateTime(timezone=True), nullable=True)
 
     owner = relationship('User', back_populates='user_pet')
     type_pet = relationship('TypeTamagochi', back_populates='pet')
@@ -140,4 +144,3 @@ class HidingPlace(Base):
     id = Column(Integer, primary_key=True)
     place = Column(String(100), nullable=True)
     reaction_found = Column(String(300), nullable=True)
-

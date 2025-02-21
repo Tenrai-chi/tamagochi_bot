@@ -1,10 +1,11 @@
-""" Изменение состояния питомца """
+""" Функции для запросов к базе данных для имзенения состояния питомца """
 
+from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from telegram import _user
 
-from .methods import session_local, get_reaction_to_action
+from .methods import session_local, get_reaction_to_action, moscow_tz
 from .models import UserTamagochi, User, Food
 
 
@@ -112,7 +113,7 @@ async def therapy(user: _user) -> dict:
         user_pet.health += 100
         await db_sess.commit()
         await db_sess.refresh(user_pet)
-        reaction = await get_reaction_to_action('grooming')
+        reaction = await get_reaction_to_action('healing')
         return {'health': user_pet.health,
                 'happiness': user_pet.happiness,
                 'grooming': user_pet.grooming,
@@ -123,12 +124,25 @@ async def therapy(user: _user) -> dict:
                 }
 
 
-async def sleep():
+async def sleep(user: _user):
     """ Сон. Питомец должен уходить в инактив
-        на какое-то время и быть недоступным для взаиодействие.
-        Во время сна восстанавливается энергия
+        и становится неактивным для взаимодействия на 4 часа.
+        Время отправки питомца в сон user_pet.time_sleep
+        При отправке спать питомец получает 60 энергии
     """
-    pass
+
+    async for db_sess in session_local():
+        user_pet_result = await db_sess.execute(select(UserTamagochi)
+                                                .join(User)
+                                                .filter(User.user_telegram_id == user.id))
+        user_pet = user_pet_result.scalars().first()
+        user_pet.energy += 80
+        user_pet.sleep = True
+        user_pet.time_sleep = datetime.now(moscow_tz)
+        await db_sess.commit()
+        await db_sess.refresh(user_pet)
+        reaction = await get_reaction_to_action('sleep_start')
+        return {'reaction': reaction}
 
 
 async def reduction_stats():
