@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+from random import sample, choice
 
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -21,10 +22,12 @@ from database.methods import (get_user,
                               rename,
                               get_all_foods,
                               update_user_last_request,
-                              pet_is_sleep)
+                              pet_is_sleep,
+                              get_hiding_places)
+
 from database.create_and_populate_db import initialize_database
 
-from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep
+from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep, play_hide_and_seek
 from utilites import validation_name
 
 
@@ -90,15 +93,17 @@ class PetBot:
 
     def _register_handlers(self):
         self.application.add_handler(CommandHandler('start', self.start))
-        self.application.add_handler(CommandHandler('create_pet', self.create_pet))
+        self.application.add_handler(CommandHandler('create', self.create_pet))
         self.application.add_handler(CommandHandler('rename', self.rename_pet))
         self.application.add_handler(CommandHandler('feed', self.feed))
         self.application.add_handler(CommandHandler('sleep', self.sleep_pet))
+        self.application.add_handler(CommandHandler('play', self.play_with_pet))
         self.application.add_handler(CommandHandler('therapy', self.therapy))
         self.application.add_handler(CommandHandler('grooming', self.grooming_pet))
-        self.application.add_handler(CommandHandler('XLir3HJkIDRsFyM', self.create_database))
         self.application.add_handler(CommandHandler('check', self.check_pet_stats))
+        self.application.add_handler(CommandHandler('XLir3HJkIDRsFyM', self.create_database))
         self.application.add_handler(CallbackQueryHandler(self.choose_pet, pattern=r'pet_.*$'))
+        self.application.add_handler(CallbackQueryHandler(self.choice_place, pattern=r'place_.*$'))
         self.application.add_handler(CallbackQueryHandler(self.choose_food, pattern=r'food_.*$'))
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.process_user_message))
@@ -141,10 +146,48 @@ class PetBot:
     @check_pet_is_sleep
     async def play_with_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /play
-            Игра с питомцем
+            Запуск игры в прятки
         """
 
-        pass
+        places = await get_hiding_places()
+        random_places = sample(places, 3)
+        true_place = choice(random_places)
+        context.user_data['true_place'] = true_place['place']
+        context.user_data['place_reaction'] = true_place['reaction']
+
+        keyboard = []
+        for place in random_places:
+            keyboard.append([InlineKeyboardButton(place['place'], callback_data=f'place_{place["place"]}')])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text('Я спрятался, теперь найди меня', reply_markup=reply_markup)
+        logging.info(f'Пользователь {update.effective_user.id} инициировал игру в прятки')
+
+    @staticmethod
+    async def choice_place(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """ Проверяет выбор пользователя.
+            Удаляет варианты выбора из диалога
+            Если пользователь угадал правильное место, то обновлет статы питомца.
+            Если не угадал, то предлагает начать заново
+        """
+
+        query = update.callback_query
+        await query.answer()
+        await query.edit_message_reply_markup(reply_markup=None)
+        user_choice_place = query.data.split('_')[1]
+        if user_choice_place == context.user_data['true_place']:
+            user_pet = await play_hide_and_seek(update.effective_user)
+            place_reaction = context.user_data['place_reaction']
+            answer = (f'{place_reaction}\n'
+                      f'{user_pet["reaction"]}\n'
+                      f'/play'
+                      )
+            await context.bot.send_message(update.effective_user.id, answer)
+        else:
+            answer = (f'Ты не угадал! Я пратался в другом месте, попробуем снова?\n'
+                      f'/play')
+            await context.bot.send_message(update.effective_user.id, answer)
+        del context.user_data['true_place']
+        del context.user_data['place_reaction']
 
     @staticmethod
     @check_pet_exists

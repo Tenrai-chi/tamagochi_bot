@@ -176,7 +176,7 @@ async def get_hiding_places() -> List[Dict[str, str]]:
     """ Возвращает все доступные места для пряток """
 
     async for db_sess in session_local():
-        places_result = db_sess.execute(select(HidingPlace))
+        places_result = await db_sess.execute(select(HidingPlace))
         all_places = places_result.scalars().all()
         hiding_places = [
             {'place': place.place, 'reaction': place.reaction_found}
