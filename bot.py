@@ -23,7 +23,8 @@ from database.methods import (get_user,
                               get_all_foods,
                               update_user_last_request,
                               pet_is_sleep,
-                              get_hiding_places)
+                              get_hiding_places,
+                              check_is_sick)
 
 from database.create_and_populate_db import initialize_database
 
@@ -54,7 +55,7 @@ def check_user_registered(func):
 
 
 def check_pet_exists(func):
-    """ Декоратор.
+    """ Декоратор
         Проверяет есть ли у пользователя питомец
     """
 
@@ -70,7 +71,7 @@ def check_pet_exists(func):
 
 
 def check_pet_is_sleep(func):
-    """ Декоратор.
+    """ Декоратор
         Проверяет спит ли питомец на данный момент
     """
 
@@ -79,6 +80,21 @@ def check_pet_is_sleep(func):
         if is_sleep['sleep'] is True:
             await update.message.reply_text(is_sleep['reaction'])
             logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец спит')
+        else:
+            return await func(update, context)
+    return wrapper
+
+
+def check_pet_sick(func):
+    """ Декоратор
+        Проверяет болен ли питомец
+    """
+
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        is_sick = await check_is_sick(update.effective_user)
+        if is_sick['sick'] is True:
+            await update.message.reply_text(is_sick['reaction'])
+            logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец болен')
         else:
             return await func(update, context)
     return wrapper
@@ -110,7 +126,7 @@ class PetBot:
 
     @staticmethod
     @check_user_registered
-    async def start(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /start
             Отправляет пользователю приветственное сообщение
             или инструкцию по созданию питомца, если его нет
@@ -128,9 +144,11 @@ class PetBot:
                       f'5. Поменять мне имя - /rename ✏️\n'
                       f'6. Узнать как я себя чувствую - /check ❤️\n'
                       f'Я с нетерпением жду, чтобы провести время с тобой!')
-            await update.message.reply_text(answer)
+            await context.bot.send_photo(chat_id=update.effective_user.id,
+                                         photo=user_pet.type_pet.image_url,
+                                         caption=answer)
         else:
-            await update.message.reply_text('Привет! Используйте команду /create_pet для создания питомца.')
+            await update.message.reply_text('Привет! Используйте команду /create для создания питомца.')
         logging.info(f'Пользователь {update.effective_user.id} /start')
 
     @staticmethod
@@ -143,6 +161,7 @@ class PetBot:
 
     @staticmethod
     @check_pet_exists
+    @check_pet_sick
     @check_pet_is_sleep
     async def play_with_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /play
@@ -245,15 +264,15 @@ class PetBot:
 
         pet = await sleep(update.effective_user)
         await context.bot.send_message(update.effective_user.id, pet['reaction'])
+        logging.info(f'Пользователь {update.effective_user} тправил питомца спать')
 
     @staticmethod
     @check_user_registered
     async def create_pet(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
-        """ /create_pet.
+        """ /create
             Инициализирует создание питомца.
             Пользователю предлагается на выбор тип питомца
         """
-
         user_pet = await get_user_tamagochi(update.effective_user)
         await update_user_last_request(update.effective_user)
         if user_pet:
@@ -370,9 +389,9 @@ class PetBot:
         context.user_data['pet_name'] = pet_name
         logging.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
 
-        await create_user_tamagochi(update.effective_user,
-                                    pet_name,
-                                    pet_type)
+        pet = await create_user_tamagochi(update.effective_user,
+                                          pet_name,
+                                          pet_type)
         answer = (f'Привет! Я твой новый питомец {pet_type} по имени {pet_name} 🐾\n!'
                   f'Вот как ты можешь со мной взаимодействовать:\n'
                   f'1. Кормить меня - /feed 🍽️\n'
@@ -382,7 +401,9 @@ class PetBot:
                   f'5. Поменять мне имя - /rename ✏️\n'
                   f'6. Узнать как я себя чувствую - /check ❤️\n'
                   f'Я с нетерпением жду, чтобы провести время с тобой!')
-        await update.message.reply_text(answer)
+        await context.bot.send_photo(chat_id=update.effective_user.id,
+                                     photo=pet.type_pet.image_url,
+                                     caption=answer)
 
         del context.user_data['pet_type']
         del context.user_data['pet_name']
@@ -401,7 +422,7 @@ class PetBot:
 
     @staticmethod
     @check_pet_exists
-    async def check_pet_stats(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
+    async def check_pet_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ /check_pet.
             Выводит пользователю текущее состояние его питомца
         """
@@ -419,7 +440,9 @@ class PetBot:
             answer += 'Я заболел('
         else:
             answer += 'Я здоров)'
-        await update.message.reply_text(answer)
+        await context.bot.send_photo(chat_id=update.effective_user.id,
+                                     photo=pet.type_pet.image_url,
+                                     caption=answer)
         logging.info(f'Пользователь {update.effective_user.id} проверил состояние питомца')
 
     async def _shutdown(self):

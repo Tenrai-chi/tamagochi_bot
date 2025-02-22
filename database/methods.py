@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy import select, insert, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import selectinload
 from telegram import _user
 from typing import Union, List, Dict
 
@@ -29,6 +30,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 async def session_local() -> AsyncSession:
     """ Создает новую асинхронную сессию для каждого запроса"""
+
     async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         yield session
@@ -71,6 +73,7 @@ async def create_user_tamagochi(user: _user, name: str, type_pet: str) -> UserTa
             pet = result.scalars().one()
 
             await db_sess.commit()
+            await db_sess.refresh(pet, attribute_names=['type_pet'])
             logging.info(f'Питомец пользователя {user.id} был записан в базу данных')
         except Exception as e:
             logging.error(e)
@@ -108,6 +111,7 @@ async def get_user_tamagochi(user: _user) -> Union[UserTamagochi, None]:
 
     async for db_sess in session_local():
         user_pet_result = await db_sess.execute(select(UserTamagochi)
+                                                .options(selectinload(UserTamagochi.type_pet))
                                                 .join(User)
                                                 .where(User.user_telegram_id == user.id)
                                                 )
@@ -188,6 +192,7 @@ async def get_hiding_places() -> List[Dict[str, str]]:
 async def pet_is_sleep(user: _user) -> dict:
     """ Проверяет спит ли питомец в данный момент
         Если спит, то выводится реакция
+        Со спящим питомцем нельзя взаимодействовать
     """
 
     async for db_sess in session_local():
@@ -208,3 +213,23 @@ async def pet_is_sleep(user: _user) -> dict:
                 reaction = await get_reaction_to_action('sleep')
                 return {'sleep': True,
                         'reaction': reaction}
+
+
+async def check_is_sick(user: _user) -> dict:
+    """ Проверяет болен ли питомец в данный момент
+        Если болен, то выводится реакция
+        С больным питомцем нельзя играть
+    """
+
+    async for db_sess in session_local():
+        pet_result = await db_sess.execute(select(UserTamagochi)
+                                           .join(User)
+                                           .where(User.user_telegram_id == user.id)
+                                           )
+        pet = pet_result.scalars().first()
+        if pet.sick is False:
+            return {'sick': False}
+        else:
+            reaction = await get_reaction_to_action('sick')
+            return {'sick': True,
+                    'reaction': reaction}
