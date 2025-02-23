@@ -1,20 +1,18 @@
 """ Создание и заполнение таблиц в бд """
 
 import json
-import logging
 import os
 
 from sqlalchemy import text
 
-from .methods import engine, session_local
-from .models import (TypeTamagochi,
-                     TypeFood,
-                     Food,
-                     Reaction,
-                     HidingPlace,
-                     Base)
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+from database.methods import engine, session_local
+from database.models import (TypeTamagochi,
+                             TypeFood,
+                             Food,
+                             Reaction,
+                             HidingPlace,
+                             Base)
+from utilites.logger import logger
 
 
 async def initialize_database() -> None:
@@ -37,9 +35,9 @@ async def create_tables() -> None:
         async with engine.begin() as conn:
             print('Начинаем создание таблиц')
             await conn.run_sync(Base.metadata.create_all)
-        logging.info('Таблицы успешно созданы')
+        logger.info('Таблицы успешно созданы')
     except Exception as e:
-        logging.error(f'Ошибка при создании таблиц: {e}')
+        logger.error(f'Ошибка при создании таблиц: {e}')
 
 
 async def create_trigger_and_func() -> None:
@@ -69,9 +67,9 @@ async def create_trigger_and_func() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(create_func_sql))
             await conn.execute(text(create_trigger_sql))
-            logging.info('Триггер для user_tamagochi успешно создан')
+            logger.info('Триггер для user_tamagochi успешно создан')
     except Exception as e:
-        logging.error(f'Ошибка при создании триггера: {e}')
+        logger.error(f'Ошибка при создании триггера: {e}')
 
 
 async def create_trigger_sick() -> None:
@@ -101,9 +99,9 @@ async def create_trigger_sick() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(create_func_sql))
             await conn.execute(text(create_trigger_sql))
-            logging.info('Триггер sick для user_tamagochi успешно создан')
+            logger.info('Триггер sick для user_tamagochi успешно создан')
     except Exception as e:
-        logging.error(f'Ошибка при создании триггера: {e}')
+        logger.error(f'Ошибка при создании триггера: {e}')
 
 
 async def populate_type_food_table() -> None:
@@ -124,9 +122,9 @@ async def populate_type_food_table() -> None:
                                down_state_point=type_food['down_state_point'],)
                 db_sess.add(new)
             await db_sess.commit()
-            logging.info('Таблица type_food успешно заполнена')
+            logger.info('Таблица type_food успешно заполнена')
     except Exception as e:
-        logging.error(f'Ошибка при заполнении таблицы type_food: {e}')
+        logger.error(f'Ошибка при заполнении таблицы type_food: {e}')
 
 
 async def populate_food_table() -> None:
@@ -143,9 +141,9 @@ async def populate_food_table() -> None:
                 new = Food(name=food['name'], type_food_id=food['type_food_id'])
                 db_sess.add(new)
             await db_sess.commit()
-            logging.info('Таблица food успешно заполнена')
+            logger.info('Таблица food успешно заполнена')
     except Exception as e:
-        logging.error(f'Ошибка при заполнении таблицы food: {e}')
+        logger.error(f'Ошибка при заполнении таблицы food: {e}')
 
 
 async def populate_reaction_table() -> None:
@@ -165,9 +163,9 @@ async def populate_reaction_table() -> None:
                     new = Reaction(action=action, reaction=react)
                     db_sess.add(new)
             await db_sess.commit()
-            logging.info('Таблица reaction успешно заполнена')
+            logger.info('Таблица reaction успешно заполнена')
     except Exception as e:
-        logging.error(f'Ошибка при заполнении таблицы reaction: {e}')
+        logger.error(f'Ошибка при заполнении таблицы reaction: {e}')
 
 
 async def populate_hiding_place_table() -> None:
@@ -184,9 +182,9 @@ async def populate_hiding_place_table() -> None:
                 new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
                 db_sess.add(new)
             await db_sess.commit()
-            logging.info('Таблица hiding_place успешно заполнена')
+            logger.info('Таблица hiding_place успешно заполнена')
     except Exception as e:
-        logging.error(f'Ошибка при заполнении таблицы hiding_place: {e}')
+        logger.error(f'Ошибка при заполнении таблицы hiding_place: {e}')
 
 
 async def populate_type_tamagochi() -> None:
@@ -210,6 +208,6 @@ async def populate_type_tamagochi() -> None:
                                     )
                 db_sess.add(new)
             await db_sess.commit()
-            logging.info('Таблица type_tamagochi успешно заполнена')
+            logger.info('Таблица type_tamagochi успешно заполнена')
     except Exception as e:
-        logging.error(f'Ошибка при заполнении таблицы type_tamagochi: {e}')
+        logger.error(f'Ошибка при заполнении таблицы type_tamagochi: {e}')

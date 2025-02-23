@@ -1,7 +1,6 @@
 """ Логика работы бота """
 
 import asyncio
-import logging
 import os
 from random import sample, choice
 
@@ -26,18 +25,14 @@ from database.methods import (get_user,
                               get_hiding_places,
                               check_is_sick)
 
-from database.create_and_populate_db import initialize_database
-
+from database.db_init.create_and_populate_db import initialize_database
 from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep, play_hide_and_seek
-from utilites import validation_name
+from utilites.utilites import validation_name
+from utilites.logger import logger
 
 
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('bot_token')
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-httpx_logger = logging.getLogger("httpx")
-httpx_logger.setLevel(logging.WARNING)
 
 
 def check_user_registered(func):
@@ -49,7 +44,7 @@ def check_user_registered(func):
         user = await get_user(update.effective_user)
         if user is None:
             await create_user(update.effective_user)
-            logging.info(f'Был создан профиль пользователя {update.effective_user.id}')
+            logger.info(f'Был создан профиль пользователя {update.effective_user.id}')
         return await func(update, context)
     return wrapper
 
@@ -63,7 +58,7 @@ def check_pet_exists(func):
         pet = await get_user_tamagochi(update.effective_user)
         if pet is None:
             await update.message.reply_text('У вас нет питомца')
-            logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, который его не имеет')
+            logger.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, который его не имеет')
             return
         else:
             return await func(update, context)
@@ -79,7 +74,7 @@ def check_pet_is_sleep(func):
         is_sleep = await pet_is_sleep(update.effective_user)
         if is_sleep['sleep'] is True:
             await update.message.reply_text(is_sleep['reaction'])
-            logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец спит')
+            logger.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец спит')
         else:
             return await func(update, context)
     return wrapper
@@ -94,7 +89,7 @@ def check_pet_sick(func):
         is_sick = await check_is_sick(update.effective_user)
         if is_sick['sick'] is True:
             await update.message.reply_text(is_sick['reaction'])
-            logging.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец болен')
+            logger.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец болен')
         else:
             return await func(update, context)
     return wrapper
@@ -149,7 +144,7 @@ class PetBot:
                                          caption=answer)
         else:
             await update.message.reply_text('Привет! Используйте команду /create для создания питомца.')
-        logging.info(f'Пользователь {update.effective_user.id} /start')
+        logger.info(f'Пользователь {update.effective_user.id} /start')
 
     @staticmethod
     async def create_database(update: Update, _: ContextTypes.DEFAULT_TYPE) -> None:
@@ -179,7 +174,7 @@ class PetBot:
             keyboard.append([InlineKeyboardButton(place['place'], callback_data=f'place_{place["place"]}')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text('Я спрятался, теперь найди меня', reply_markup=reply_markup)
-        logging.info(f'Пользователь {update.effective_user.id} инициировал игру в прятки')
+        logger.info(f'Пользователь {update.effective_user.id} инициировал игру в прятки')
 
     @staticmethod
     async def choice_place(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -264,7 +259,7 @@ class PetBot:
 
         pet = await sleep(update.effective_user)
         await context.bot.send_message(update.effective_user.id, pet['reaction'])
-        logging.info(f'Пользователь {update.effective_user} тправил питомца спать')
+        logger.info(f'Пользователь {update.effective_user} тправил питомца спать')
 
     @staticmethod
     @check_user_registered
@@ -285,7 +280,7 @@ class PetBot:
 
             reply_markup = InlineKeyboardMarkup(keyboard)
             await update.message.reply_text('Выберите питомца:', reply_markup=reply_markup)
-            logging.info(f'Пользователь {update.effective_user.id} инициировал создание питомца')
+            logger.info(f'Пользователь {update.effective_user.id} инициировал создание питомца')
 
     @staticmethod
     async def choose_pet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -307,7 +302,7 @@ class PetBot:
 
             await context.bot.send_message(update.effective_user.id, 'Выберите имя для вашего питомца:')
 
-            logging.info(f'Пользователь {update.effective_user.id} создал питомца {pet_type}')
+            logger.info(f'Пользователь {update.effective_user.id} создал питомца {pet_type}')
 
         context.user_data['waiting_for_name'] = True
 
@@ -365,7 +360,7 @@ class PetBot:
             answer += 'Я здоров)'
         await context.bot.send_message(update.effective_user.id, answer)
 
-        logging.info(f'Пользователь {update.effective_user.id} покормил питомца')
+        logger.info(f'Пользователь {update.effective_user.id} покормил питомца')
 
     async def process_user_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """ Обработчик сообщений.
@@ -387,7 +382,7 @@ class PetBot:
         pet_name = update.message.text
         pet_type = context.user_data.get('pet_type')
         context.user_data['pet_name'] = pet_name
-        logging.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
+        logger.info(f'Пользователь {update.effective_user.id} выбрал имя питомца {pet_name}')
 
         pet = await create_user_tamagochi(update.effective_user,
                                           pet_name,
@@ -418,7 +413,7 @@ class PetBot:
         await rename(update.effective_user, new_name)
         await update.message.reply_text(f'Теперь меня зовут {new_name}')
         del context.user_data['rename']
-        logging.info(f'Пользователь {update.effective_user.id} переименовал питомца')
+        logger.info(f'Пользователь {update.effective_user.id} переименовал питомца')
 
     @staticmethod
     @check_pet_exists
@@ -443,7 +438,7 @@ class PetBot:
         await context.bot.send_photo(chat_id=update.effective_user.id,
                                      photo=pet.type_pet.image_url,
                                      caption=answer)
-        logging.info(f'Пользователь {update.effective_user.id} проверил состояние питомца')
+        logger.info(f'Пользователь {update.effective_user.id} проверил состояние питомца')
 
     async def _shutdown(self):
         """ Закрывает приложение, ожидая завершение тасков, если такие имеются """

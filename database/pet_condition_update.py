@@ -1,12 +1,14 @@
 """ Функции для запросов к базе данных для имзенения состояния питомца """
 
+import asyncpg
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from telegram import _user
 
-from .methods import session_local, get_reaction_to_action, moscow_tz
+from .methods import moscow_tz, db_user, db_name, db_host, db_password, session_local, get_reaction_to_action
 from .models import UserTamagochi, User, Food
+from utilites.logger import logger
 
 
 async def feed_pet(user: _user, food: str) -> dict:
@@ -147,4 +149,50 @@ async def sleep(user: _user):
 
 async def reduction_stats():
     """ Уменьшение характеристик питомца о временем """
-    pass
+
+    logger.info('Запущена задача reduction_stats')
+
+    try:
+        # Подключаемся к базе данных
+        logger.info('Подключаемся к базе данных...')
+
+        # Пришлось работать напрямую через asyncpg, так как обычная сессия с SQLAlchemy отрабатывала с ошибками
+        conn = await asyncpg.connect(f'postgresql://{db_user}:{db_password}@{db_host}/{db_name}')
+
+        pets = await conn.fetch('SELECT * FROM user_tamagochi')
+
+        if not pets:
+            logger.warning('Нет питомцев в базе данных')
+            return
+
+        logger.info(f'Количество найденных питомцев: {len(pets)}')
+
+        async with conn.transaction():
+
+            for pet in pets:
+                updated_stats = {
+                    'health': pet['health'] - 5,
+                    'happiness': pet['happiness'] - 5,
+                    'grooming': pet['grooming'] - 5,
+                    'hunger': pet['hunger'] - 5
+                }
+
+                # Обновление данных питомца в базе, используется вставка, а не f-string
+                await conn.execute("""
+                        UPDATE user_tamagochi
+                        SET health = $1, happiness = $2, grooming = $3, hunger = $4
+                        WHERE id = $5
+                    """,
+                                   updated_stats['health'],
+                                   updated_stats['happiness'],
+                                   updated_stats['grooming'],
+                                   updated_stats['hunger'],
+                                   pet['id'])
+        logger.info('Транзакция выполнена успешно!')
+
+    except Exception as e:
+        logger.error(f'Произошла ошибка в reduction_stats: {e}')
+    finally:
+        if conn:
+            logger.info('Закрытие подключения к базе данных...')
+            await conn.close()

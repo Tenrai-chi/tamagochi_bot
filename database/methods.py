@@ -1,9 +1,7 @@
 """ Функции для запросов к базе данных, не изменяющих состояние питомца """
 
-import logging
 import os
 import random
-
 import pytz
 
 from datetime import datetime, timedelta
@@ -15,6 +13,7 @@ from telegram import _user
 from typing import Union, List, Dict
 
 from database.models import User, TypeTamagochi, UserTamagochi, Food, Reaction, HidingPlace
+from utilites.logger import logger
 
 load_dotenv()
 db_host = os.getenv('db_host')
@@ -22,18 +21,21 @@ db_name = os.getenv('db_name')
 db_user = os.getenv('db_user')
 db_password = os.getenv('db_password')
 DATABASE_URL = f'postgresql+asyncpg://{db_user}:{db_password}@{db_host}/{db_name}'
-engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, echo=False)
+async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 moscow_tz = pytz.timezone('Europe/Moscow')
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 
 async def session_local() -> AsyncSession:
-    """ Создает новую асинхронную сессию для каждого запроса"""
+    """ Создает новую асинхронную сессию для каждого запроса """
 
-    async_session = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
-        yield session
+        try:
+            yield session
+        except Exception as e:
+            logger.error(f'Ошибка при работе с сессией: {e}')
+            raise
 
 
 async def get_types_pet() -> List[str]:
@@ -74,9 +76,9 @@ async def create_user_tamagochi(user: _user, name: str, type_pet: str) -> UserTa
 
             await db_sess.commit()
             await db_sess.refresh(pet, attribute_names=['type_pet'])
-            logging.info(f'Питомец пользователя {user.id} был записан в базу данных')
+            logger.info(f'Питомец пользователя {user.id} был записан в базу данных')
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
         return pet
 
 
