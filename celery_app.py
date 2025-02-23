@@ -1,4 +1,6 @@
-import tasks
+""" Настройка Celery. Используется для запуска celery beat и celery worker """
+
+import tasks  # Явный импорт, так как без него не видит таски
 from celery import Celery
 from utilites.logger import logger
 
@@ -9,15 +11,17 @@ app.conf.update(
     task_serializer='json',
     result_serializer='json',
     accept_content=['json'],
-    timezone='Europe/Moscow',  # Замените на ваш часовой пояс
+    timezone='Europe/Moscow',
     enable_utc=False,
-    result_expires=3600,  # Срок хранения результатов (1 час)
+    result_expires=3600,
 )
+
+app.conf.broker_connection_retry_on_startup = True
 
 app.conf.beat_schedule = {
     'update-pet-condition-every-30-minutes': {
         'task': 'tasks.update_pet_condition',
-        'schedule': 30.0,  # Каждые 30 минут (1800.0 секунд)
+        'schedule': 1800.0,  # Каждые 30 минут
     },
 }
 

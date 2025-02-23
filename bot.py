@@ -27,8 +27,8 @@ from database.methods import (get_user,
 
 from database.db_init.create_and_populate_db import initialize_database
 from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep, play_hide_and_seek
-from utilites.utilites import validation_name
 from utilites.logger import logger
+from utilites.utilites import validation_name
 
 
 load_dotenv()
