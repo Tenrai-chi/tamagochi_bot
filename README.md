@@ -32,12 +32,12 @@
   | auto | str(30) |    int     |      int      |       int    |      int   |      int   |  str(500) |
 
 * **user_tamagochi.** Питомца пользователей
-  |  id  |   name  |      type_id      | health | happiness | grooming | energy | hunger |  sick |  sleep | time_sleep |
-  |------|---------|-------------------|--------|-----------|----------|--------|--------|-------|--------|------------|
-  | auto | str(50) | type_tamagochi.id |   int  |     int   |    int   |   int  |   int  |  bool |  bool  |  datetime  |
+  |  id  | owner_id |   name  |      type_id      | health | happiness | grooming | energy | hunger |  sick |  sleep | time_sleep |
+  |------|----------|---------|-------------------|--------|-----------|----------|--------|--------|-------|--------|------------|
+  | auto | user.id  | str(50) | type_tamagochi.id |   int  |     int   |    int   |   int  |   int  |  bool |  bool  |  datetime  |
   
 * **type_food.** Типы еды. В зависимости от типа увеличивает и умеьшает различные характеристики type_food.json
-  |  id  |    name | up_state_name | up_state_point | down_state_name | down_state_point |
+  |  id  |  name   | up_state_name | up_state_point | down_state_name | down_state_point |
   |------|---------|---------------|----------------|-----------------|------------------|
   | auto | str(70) |     str(20)   |       int      |       str(20)   |       int        |
 
@@ -71,18 +71,28 @@ pip install -r reqirements.txt
    - **db_name** - имя базы данных
    - **db_user** - имя пользователя, который будет подключаться к бд
    - **db_password** - пароль пользователя
-6. Запустите проект с помощью файла main.py или bot.py
-7. После запуска бота и и вывода в консоль логов о запуске, отправьте боту команду /XLir3HJkIDRsFyM, это создаст все таблицы и заполнит их необходимыми данными
-8. Если в консоль вывелось сообщение о том, что таблицы и триггеры созданы, то ваш бот готов к работе
+5. Установите RabbitMQ (если он не установлен) и запустите его
+6. Запустите из директории проекта Celery Worker и Celery Beat
+```bash
+celery -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
+celery -A celery_app beat -l info -s celerybeat-schedule
+```
+или создайте edit configuration с параметрами для celery_app.py
+Celery worker -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
+Celery beat -A celery_app beat -l info -s celerybeat-schedule
+7. Запустите бота с помощью файла bot.py
+8. После запуска бота и и вывода в консоль логов о запуске, отправьте боту команду /XLir3HJkIDRsFyM, это создаст все таблицы и заполнит их необходимыми данными
+9. Если в консоль вывелось сообщение о том, что таблицы и триггеры созданы, то ваш бот готов к работе
 
 ## **План дальнейшей разработки:**
 - [ ] Использование Docker для развертывания
-- [ ] Уменьшение характеристик питомца со временем с использованием Celery и RabbitMQ
-- [ ] Игра в прятки с питомцем
+- [X] Уменьшение характеристик питомца со временем с использованием Celery и RabbitMQ
+- [X] Игра в прятки с питомцем
 - [X] Лечение питомца
 - [X] Груминг питомца
 - [X] Отправка питомца спать, чтобы на некоторое время, пока восстанавливается энергия, питомец был недоступен для взаимодействия
 - [ ] Запрет на некоторые взаимодействия при низком уровне определенных характериктик
+- [X] Если питомец болен, то с ним нельзя играть
 - [X] Добавление возможности автоматического создания и заполнени базы данных
 - [ ] Отправка сообщений питомцами своим хозяевам при долгой неактивности или понижения важных характеристик (здоровье, настроение)
 - [ ] Добавление описания запуска и настройки проекта в readme с использованием Docker
@@ -94,6 +104,8 @@ pip install -r reqirements.txt
 * python-telegram-bot
 * PostgreSQL
 * SQLAlchemy
+* Selery
+* RabbitMQ
 * asyncpg
 * asyncio
 * json
