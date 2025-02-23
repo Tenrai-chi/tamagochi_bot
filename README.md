@@ -77,9 +77,9 @@ pip install -r reqirements.txt
 celery -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
 celery -A celery_app beat -l info -s celerybeat-schedule
 ```
-или создайте edit configuration с параметрами для celery_app.py
-    - Celery worker -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
-    - Celery beat -A celery_app beat -l info -s celerybeat-schedule
+или создайте edit configuration с параметрами для celery_app.py:
+- Celery worker: -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
+- Celery beat: -A celery_app beat -l info -s celerybeat-schedule
 7. Запустите бота с помощью файла bot.py
 8. После запуска бота и и вывода в консоль логов о запуске, отправьте боту команду /XLir3HJkIDRsFyM, это создаст все таблицы и заполнит их необходимыми данными
 9. Если в консоль вывелось сообщение о том, что таблицы и триггеры созданы, то ваш бот готов к работе
