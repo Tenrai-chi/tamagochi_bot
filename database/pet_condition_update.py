@@ -12,9 +12,9 @@ from utilites.logger import logger
 
 
 async def feed_pet(user: _user, food: str) -> dict:
-    """ Кормление питомца.
+    """ Кормление питомца
         В зависимости от выбора еды,
-        повышает и понижает соответствующие характеристики питомца
+        повышает hunger и понижает 1 характеристику питомца
     """
 
     async for db_sess in session_local():
@@ -53,7 +53,7 @@ async def feed_pet(user: _user, food: str) -> dict:
 
 
 async def play_hide_and_seek(user: _user) -> dict:
-    """ Игра в прятки с питомцем.
+    """ Игра в прятки с питомцем
         Увеличивает настроение и уменьшает энергию питомца
     """
 
@@ -78,7 +78,7 @@ async def play_hide_and_seek(user: _user) -> dict:
 
 
 async def grooming_pet(user: _user) -> dict:
-    """ Мытье питомца.
+    """ Мытье питомца
         Увеличивает чистоту питомца
     """
 
@@ -102,7 +102,7 @@ async def grooming_pet(user: _user) -> dict:
 
 
 async def therapy(user: _user) -> dict:
-    """ Лечение питомца.
+    """ Лечение питомца
         Полностью восстанавливает здоровье питомца и исцеляет болезнь
     """
 
@@ -126,9 +126,9 @@ async def therapy(user: _user) -> dict:
                 }
 
 
-async def sleep(user: _user):
-    """ Сон. Питомец должен уходить в инактив
-        и становится неактивным для взаимодействия на 4 часа.
+async def sleep(user: _user) -> dict:
+    """ Сон. Питомец уходит в инактив
+        и становится недоступным для взаимодействия на 4 часа
         Время отправки питомца в сон user_pet.time_sleep
         При отправке спать питомец получает 60 энергии
     """
@@ -147,13 +147,10 @@ async def sleep(user: _user):
         return {'reaction': reaction}
 
 
-async def reduction_stats():
+async def reduction_stats() -> None:
     """ Уменьшение характеристик питомца о временем """
 
-    logger.info('Запущена задача reduction_stats')
-
     try:
-        # Подключаемся к базе данных
         logger.info('Подключаемся к базе данных...')
 
         # Пришлось работать напрямую через asyncpg, так как обычная сессия с SQLAlchemy отрабатывала с ошибками
@@ -165,10 +162,7 @@ async def reduction_stats():
             logger.warning('Нет питомцев в базе данных')
             return
 
-        logger.info(f'Количество найденных питомцев: {len(pets)}')
-
         async with conn.transaction():
-
             for pet in pets:
                 updated_stats = {
                     'health': pet['health'] - 5,
@@ -188,7 +182,7 @@ async def reduction_stats():
                                    updated_stats['grooming'],
                                    updated_stats['hunger'],
                                    pet['id'])
-        logger.info('Транзакция выполнена успешно!')
+        logger.info('Изменение характеристик питомцев прошло успешно!')
 
     except Exception as e:
         logger.error(f'Произошла ошибка в reduction_stats: {e}')

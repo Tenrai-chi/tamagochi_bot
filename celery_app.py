@@ -26,5 +26,5 @@ app.conf.beat_schedule = {
 }
 
 if __name__ == '__main__':
-    logger.info("Запуск celery app!")
+    logger.info('Запуск celery app!')
     app.start()

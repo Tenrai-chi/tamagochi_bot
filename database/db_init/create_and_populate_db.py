@@ -128,7 +128,7 @@ async def populate_type_food_table() -> None:
 
 
 async def populate_food_table() -> None:
-    """ Заполняет таблицу food при первом создании БД Проверить!!!!!"""
+    """ Заполняет таблицу food при первом создании БД """
 
     file_path = os.path.join(os.path.dirname(__file__), 'foods.json')
     with open(file_path, 'r', encoding='utf-8') as js:

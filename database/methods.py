@@ -1,16 +1,16 @@
 """ Функции для запросов к базе данных, не изменяющих состояние питомца """
 
 import os
-import random
 import pytz
+import random
 
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from sqlalchemy import select, insert, update
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
 from telegram import _user
-from typing import Union, List, Dict
+from typing import Dict, List, Union
 
 from database.models import User, TypeTamagochi, UserTamagochi, Food, Reaction, HidingPlace
 from utilites.logger import logger
@@ -90,25 +90,27 @@ async def create_user(user: _user) -> User:
                     username=user.username,
                     last_request=None,)
 
-        db_sess.add(user)
+        await db_sess.add(user)
         await db_sess.commit()
         await db_sess.refresh(user)
         return user
 
 
 async def get_user(user: _user) -> Union[User, None]:
-    """ Возвращает пользователя """
+    """ Возвращает пользователя
+        Если его нет, вернет None
+    """
 
     async for db_sess in session_local():
         result = await db_sess.execute(select(User)
                                        .where(User.user_telegram_id == user.id))
-        user = result.scalars().first()
+        user = result.scalars().one_or_none()
         return user
 
 
 async def get_user_tamagochi(user: _user) -> Union[UserTamagochi, None]:
     """ Возвращает питомца пользователя
-        Если питомца нет, то вернет None
+        Если питомца нет, вернет None
     """
 
     async for db_sess in session_local():
@@ -117,7 +119,7 @@ async def get_user_tamagochi(user: _user) -> Union[UserTamagochi, None]:
                                                 .join(User)
                                                 .where(User.user_telegram_id == user.id)
                                                 )
-        user_pet = user_pet_result.scalars().first()
+        user_pet = user_pet_result.scalars().one_or_none()
         return user_pet
 
 
@@ -129,7 +131,7 @@ async def rename(user: _user, new_name: str) -> None:
                                            .join(User)
                                            .where(User.user_telegram_id == user.id)
                                            )
-        pet = pet_result.scalars().first()
+        pet = pet_result.scalars().one_or_none()
         await db_sess.execute(update(UserTamagochi)
                               .where(UserTamagochi.id == pet.id)
                               .values(name=new_name))
@@ -160,14 +162,15 @@ async def update_user_last_request(user: _user) -> None:
 
 async def get_reaction_to_action(action: str) -> str:
     """ Возвращает реакцию питомца на действие пользователя:
-        healing - лечение болезни
-        playing - игра
-        happiness<30 - если упало настроение
-        bathing - купание
-        energy<10 - если упала энергия
-        fed - кормление
-        health<30 - если упало здоровье
-        grooming<30 - если упала чистота
+        healing - после лечения
+        playing - после игры
+        happiness<30 - если мало настроения
+        grooming - после мытья
+        energy<10 - если мало энергия
+        fed - после кормления
+        sick - если питомец болен
+        sleep - если на данный момент питомец спит
+        sleep_start - после отправления питомца спать
     """
 
     async for db_sess in session_local():
@@ -179,7 +182,9 @@ async def get_reaction_to_action(action: str) -> str:
 
 
 async def get_hiding_places() -> List[Dict[str, str]]:
-    """ Возвращает все доступные места для пряток """
+    """ Возвращает все доступные места для пряток
+        и реакции при правильном выборе места
+    """
 
     async for db_sess in session_local():
         places_result = await db_sess.execute(select(HidingPlace))

@@ -2,15 +2,16 @@
 
 from sqlalchemy import Column, Integer, String, BigInteger, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import declarative_base, relationship
+
 Base = declarative_base()
 
 
 class User(Base):
-    """ Таблица user.
-        Хранит информацию о пользователях с питомцем:
-            - Телеграм id
-            - Username
-            - Время последнего взаимодействия
+    """ Таблица user
+        Хранит информацию о пользователях:
+            - user_telegram_id - telegram id
+            - username - имя пользователя, если есть
+            - last_request - время последнего взаимодействия
     """
 
     __tablename__ = 'user'
@@ -26,7 +27,7 @@ class User(Base):
 
 
 class TypeTamagochi(Base):
-    """ Таблица type_tamagochi.
+    """ Таблица type_tamagochi
         Хранит информацию о типах тамагочи:
             - name - название
             - health_max - максимальное здоровье
@@ -51,11 +52,11 @@ class TypeTamagochi(Base):
 
 
 class UserTamagochi(Base):
-    """ Таблица user_tamagochi.
+    """ Таблица user_tamagochi
         Хранит информацию о питомцах пользователей:
-            - owner - хозяин (user)
+            - owner_id - хозяин (user)
             - name - имя
-            - type - тип питомца (type_tamagochi)
+            - type_id - тип питомца (type_tamagochi)
             - health - текущее здоровье
             - happiness - текущее настроение
             - grooming - текущая чистота
@@ -85,7 +86,7 @@ class UserTamagochi(Base):
 
 
 class TypeFood(Base):
-    """ Таблица type_food.
+    """ Таблица type_food
         Хранит информацию о типах еды:
             - name - тип еды
             - up_stat_name - какую характеристику повышает
@@ -106,10 +107,10 @@ class TypeFood(Base):
 
 
 class Food(Base):
-    """ Таблица food.
+    """ Таблица food
         Хранит информацию о еде:
             - name - название
-            - type_food - тип еды (type_food)
+            - type_food_id - тип еды (type_food)
     """
 
     __tablename__ = 'food'
@@ -121,9 +122,9 @@ class Food(Base):
 
 
 class Reaction(Base):
-    """ Таблица reaction.
+    """ Таблица reaction
         Хранит реплики питомца на различные действия:
-            - action - какое действие
+            - action - действие
             - reaction - сообщение реакция
     """
 
@@ -134,10 +135,10 @@ class Reaction(Base):
 
 
 class HidingPlace(Base):
-    """ Таблица hiding_place.
+    """ Таблица hiding_place
         Хранит места для пряток и реакцию на поиск:
             - place - место для пряток
-            - reaction - реакция на поимку
+            - reaction_found - реакция на поимку
     """
 
     __tablename__ = 'hiding_place'
