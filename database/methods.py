@@ -240,3 +240,20 @@ async def check_is_sick(user: _user) -> dict:
             reaction = await get_reaction_to_action('sick')
             return {'sick': True,
                     'reaction': reaction}
+
+
+async def check_user_pet_energy(user: _user) -> dict:
+    """ Проверяет хватает ли у питомца энергии для взаимодействия """
+
+    async for db_sess in session_local():
+        pet_result = await db_sess.execute(select(UserTamagochi)
+                                           .join(User)
+                                           .where(User.user_telegram_id == user.id)
+                                           )
+        pet = pet_result.scalars().first()
+        if pet.energy < 10:
+            reaction = await get_reaction_to_action('energy<10')
+            return {'energetic': False,
+                    'reaction': reaction}
+        else:
+            return {'energetic': True}

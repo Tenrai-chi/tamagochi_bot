@@ -23,7 +23,8 @@ from database.methods import (get_user,
                               update_user_last_request,
                               pet_is_sleep,
                               get_hiding_places,
-                              check_is_sick)
+                              check_is_sick,
+                              check_user_pet_energy)
 
 from database.db_init.create_and_populate_db import initialize_database
 from database.pet_condition_update import feed_pet, grooming_pet, therapy, sleep, play_hide_and_seek
@@ -75,6 +76,7 @@ def check_pet_is_sleep(func):
         if is_sleep['sleep'] is True:
             await update.message.reply_text(is_sleep['reaction'])
             logger.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец спит')
+            return
         else:
             return await func(update, context)
     return wrapper
@@ -90,6 +92,7 @@ def check_pet_sick(func):
         if is_sick['sick'] is True:
             await update.message.reply_text(is_sick['reaction'])
             logger.info(f'Запрос к питомцу от пользователя {update.effective_user.id}, пока питомец болен')
+            return
         else:
             return await func(update, context)
     return wrapper
@@ -135,7 +138,7 @@ class PetBot:
                       f'1. Кормить меня - /feed 🍽️\n'
                       f'2. Играть со мной - /play 🎾\n'
                       f'3. Укладывать спать - /sleep 💤\n'
-                      f'4. Лечить меня, если я заболею - /heal 💊\n'
+                      f'4. Лечить меня, если я заболею - /therapy 💊\n'
                       f'5. Поменять мне имя - /rename ✏️\n'
                       f'6. Узнать как я себя чувствую - /check ❤️\n'
                       f'Я с нетерпением жду, чтобы провести время с тобой!')
@@ -164,19 +167,23 @@ class PetBot:
             Запуск игры в прятки
             Предлагает пользователю выбрать из 3 доступных мест, где спрятался питомец
         """
+        pet_energy = await check_user_pet_energy(update.effective_user)
+        if pet_energy['energetic'] is False:
+            await update.message.reply_text(pet_energy['reaction'])
+            logger.info(f'Запрос к питомцу для игры от пользователя {update.effective_user.id}, у которого слишком мало энергии')
+        else:
+            places = await get_hiding_places()
+            random_places = sample(places, 3)
+            true_place = choice(random_places)
+            context.user_data['true_place'] = true_place['place']
+            context.user_data['place_reaction'] = true_place['reaction']
 
-        places = await get_hiding_places()
-        random_places = sample(places, 3)
-        true_place = choice(random_places)
-        context.user_data['true_place'] = true_place['place']
-        context.user_data['place_reaction'] = true_place['reaction']
-
-        keyboard = []
-        for place in random_places:
-            keyboard.append([InlineKeyboardButton(place['place'], callback_data=f'place_{place["place"]}')])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text('Я спрятался, теперь найди меня', reply_markup=reply_markup)
-        logger.info(f'Пользователь {update.effective_user.id} инициировал игру в прятки')
+            keyboard = []
+            for place in random_places:
+                keyboard.append([InlineKeyboardButton(place['place'], callback_data=f'place_{place["place"]}')])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text('Я спрятался, теперь найди меня', reply_markup=reply_markup)
+            logger.info(f'Пользователь {update.effective_user.id} инициировал игру в прятки')
 
     @staticmethod
     async def choice_place(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -396,7 +403,7 @@ class PetBot:
                   f'1. Кормить меня - /feed 🍽️\n'
                   f'2. Играть со мной - /play 🎾\n'
                   f'3. Укладывать спать - /sleep 💤\n'
-                  f'4. Лечить меня, если я заболею - /heal 💊\n'
+                  f'4. Лечить меня, если я заболею - /therapy 💊\n'
                   f'5. Поменять мне имя - /rename ✏️\n'
                   f'6. Узнать как я себя чувствую - /check ❤️\n'
                   f'Я с нетерпением жду, чтобы провести время с тобой!')
