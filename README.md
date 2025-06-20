@@ -71,18 +71,9 @@ pip install -r reqirements.txt
    - **db_name** - имя базы данных
    - **db_user** - имя пользователя, который будет подключаться к бд
    - **db_password** - пароль пользователя
-5. Установите RabbitMQ (если он не установлен) и запустите его
-6. Запустите из директории проекта Celery Worker и Celery Beat
-```bash
-celery -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
-celery -A celery_app beat -l info -s celerybeat-schedule
-```
-или создайте edit configuration с параметрами для celery_app.py:
-- Celery worker: -A celery_app worker -l info -c 1 -P solo -n worker1@%COMPUTERNAME% -E
-- Celery beat: -A celery_app beat -l info -s celerybeat-schedule
-7. Запустите бота с помощью файла bot.py
-8. После запуска бота и и вывода в консоль логов о запуске, отправьте боту команду /XLir3HJkIDRsFyM, это создаст все таблицы и заполнит их необходимыми данными
-9. Если в консоль вывелось сообщение о том, что таблицы и триггеры созданы, то ваш бот готов к работе
+5. Запустите бота с помощью файла bot.py
+6. После запуска бота и и вывода в консоль логов о запуске, отправьте боту команду /XLir3HJkIDRsFyM, это создаст все таблицы и заполнит их необходимыми данными
+7. Если в консоль вывелось сообщение о том, что таблицы и триггеры созданы, то ваш бот готов к работе
 
 ## **План дальнейшей разработки:**
 - [ ] Использование Docker для развертывания
@@ -104,10 +95,9 @@ celery -A celery_app beat -l info -s celerybeat-schedule
 * python-telegram-bot
 * PostgreSQL
 * SQLAlchemy
-* Selery
-* RabbitMQ
 * asyncpg
 * asyncio
 * json
 * pytz
-
+* ~~Selery~~
+* ~~RabbitMQ~~
