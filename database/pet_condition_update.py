@@ -1,29 +1,35 @@
-""" Функции для запросов к базе данных для имзенения состояния питомца """
+""" Функции для запросов к базе данных для изменения состояния питомца """
 
 import asyncpg
+import logging
+
 from datetime import datetime
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from telegram import _user
 
-from .methods import moscow_tz, db_user, db_name, db_host, db_password, session_local, get_reaction_to_action
+from .methods import moscow_tz, db_user, db_name, db_host, db_password, connection, get_reaction_to_action
 from .models import UserTamagochi, User, Food
-from utilites.logger import logger
+from utilites.logger import get_logger
+
+logger = get_logger('pet_conditions_update', file_level=logging.DEBUG, console_level=logging.INFO)
 
 
-async def feed_pet(user: _user, food: str) -> dict:
+@connection
+async def feed_pet(user: _user, food: str, session: AsyncSession) -> dict:
     """ Кормление питомца
         В зависимости от выбора еды,
         повышает hunger и понижает 1 характеристику питомца
     """
 
-    async for db_sess in session_local():
-        user_pet_result = await db_sess.execute(select(UserTamagochi)
+    try:
+        user_pet_result = await session.execute(select(UserTamagochi)
                                                 .join(User)
                                                 .filter(User.user_telegram_id == user.id))
         user_pet = user_pet_result.scalars().first()
 
-        food_results = await db_sess.execute(select(Food)
+        food_results = await session.execute(select(Food)
                                              .where(Food.name == food)
                                              .options(joinedload(Food.type_food))
                                              )
@@ -39,9 +45,10 @@ async def feed_pet(user: _user, food: str) -> dict:
         current_value = getattr(user_pet, food_type.down_state_name, 0)
         new_value = current_value + food_type.down_state_point
         setattr(user_pet, food_type.down_state_name, new_value)
-        await db_sess.commit()
-        await db_sess.refresh(user_pet)
+        await session.commit()
+        await session.refresh(user_pet)
         reaction = await get_reaction_to_action('fed')
+        logger.debug(f'Обновлено состояние питомца пользователя {user_pet.owner_id} после кормления')
         return {'health': user_pet.health,
                 'happiness': user_pet.happiness,
                 'grooming': user_pet.grooming,
@@ -50,22 +57,26 @@ async def feed_pet(user: _user, food: str) -> dict:
                 'sick': user_pet.sick,
                 'reaction': reaction
                 }
+    except Exception as e:
+        logger.error(f'Ошибка в feed_pet:{e}')
 
 
-async def play_hide_and_seek(user: _user) -> dict:
-    """ Игра в прятки с питомцем
+@connection
+async def play_hide_and_seek(user: _user, session: AsyncSession) -> dict:
+    """ Игра в прятки с питомцем.
         Увеличивает настроение и уменьшает энергию питомца
     """
 
-    async for db_sess in session_local():
-        user_pet_result = await db_sess.execute(select(UserTamagochi)
+    try:
+        user_pet_result = await session.execute(select(UserTamagochi)
                                                 .join(User)
                                                 .filter(User.user_telegram_id == user.id))
         user_pet = user_pet_result.scalars().first()
         user_pet.energy -= 10
         user_pet.happiness += 15
-        await db_sess.commit()
-        await db_sess.refresh(user_pet)
+        await session.commit()
+        await session.refresh(user_pet)
+        logger.debug(f'Обновлено состояния питомца пользователя {user_pet.owner_id} после игры')
         reaction = await get_reaction_to_action('playing')
         return {'health': user_pet.health,
                 'happiness': user_pet.happiness,
@@ -75,22 +86,26 @@ async def play_hide_and_seek(user: _user) -> dict:
                 'sick': user_pet.sick,
                 'reaction': reaction
                 }
+    except Exception as e:
+        logger.error(f'Ошибка в play_hide_and_seek: {e}')
 
 
-async def grooming_pet(user: _user) -> dict:
-    """ Мытье питомца
+@connection
+async def grooming_pet(user: _user, session: AsyncSession) -> dict:
+    """ Мытье питомца.
         Увеличивает чистоту питомца
     """
 
-    async for db_sess in session_local():
-        user_pet_result = await db_sess.execute(select(UserTamagochi)
+    try:
+        user_pet_result = await session.execute(select(UserTamagochi)
                                                 .join(User)
                                                 .filter(User.user_telegram_id == user.id))
         user_pet = user_pet_result.scalars().first()
         user_pet.grooming += 100
-        await db_sess.commit()
-        await db_sess.refresh(user_pet)
+        await session.commit()
+        await session.refresh(user_pet)
         reaction = await get_reaction_to_action('grooming')
+        logger.debug(f'Обновлено состояние питомца пользователя {user_pet.owner_id} после мытья')
         return {'health': user_pet.health,
                 'happiness': user_pet.happiness,
                 'grooming': user_pet.grooming,
@@ -99,23 +114,27 @@ async def grooming_pet(user: _user) -> dict:
                 'sick': user_pet.sick,
                 'reaction': reaction
                 }
+    except Exception as e:
+        logger.error(f'Ошибка в grooming_pet: {e}')
 
 
-async def therapy(user: _user) -> dict:
+@connection
+async def therapy(user: _user, session: AsyncSession) -> dict:
     """ Лечение питомца
         Полностью восстанавливает здоровье питомца и исцеляет болезнь
     """
 
-    async for db_sess in session_local():
-        user_pet_result = await db_sess.execute(select(UserTamagochi)
+    try:
+        user_pet_result = await session.execute(select(UserTamagochi)
                                                 .join(User)
                                                 .filter(User.user_telegram_id == user.id))
         user_pet = user_pet_result.scalars().first()
         user_pet.sick = False
         user_pet.health += 100
-        await db_sess.commit()
-        await db_sess.refresh(user_pet)
+        await session.commit()
+        await session.refresh(user_pet)
         reaction = await get_reaction_to_action('healing')
+        logger.debug(f'Пользователь {user_pet.owner_id} вылечил своего питомца')
         return {'health': user_pet.health,
                 'happiness': user_pet.happiness,
                 'grooming': user_pet.grooming,
@@ -124,34 +143,40 @@ async def therapy(user: _user) -> dict:
                 'sick': user_pet.sick,
                 'reaction': reaction
                 }
+    except Exception as e:
+        logger.error(f'Ошибка в therapy: {e}')
 
 
-async def sleep(user: _user) -> dict:
+@connection
+async def sleep(user: _user, session: AsyncSession) -> dict:
     """ Сон. Питомец уходит в инактив
         и становится недоступным для взаимодействия на 4 часа
         Время отправки питомца в сон user_pet.time_sleep
         При отправке спать питомец получает 60 энергии
     """
 
-    async for db_sess in session_local():
-        user_pet_result = await db_sess.execute(select(UserTamagochi)
+    try:
+        user_pet_result = await session.execute(select(UserTamagochi)
                                                 .join(User)
                                                 .filter(User.user_telegram_id == user.id))
         user_pet = user_pet_result.scalars().first()
         user_pet.energy += 80
         user_pet.sleep = True
         user_pet.time_sleep = datetime.now(moscow_tz)
-        await db_sess.commit()
-        await db_sess.refresh(user_pet)
+        await session.commit()
+        await session.refresh(user_pet)
         reaction = await get_reaction_to_action('sleep_start')
+        logger.debug(f'Обновлено состояние питомца пользователя {user_pet.owner_id} после сна')
         return {'reaction': reaction}
+    except Exception as e:
+        logger.error(f'Ошибка в sleep: {e}')
 
 
 async def reduction_stats() -> None:
     """ Уменьшение характеристик питомца о временем """
 
     try:
-        logger.info('Подключаемся к базе данных...')
+        logger.debug('Подключаемся к базе данных...')
 
         # Пришлось работать напрямую через asyncpg, так как обычная сессия с SQLAlchemy отрабатывала с ошибками
         conn = await asyncpg.connect(f'postgresql://{db_user}:{db_password}@{db_host}/{db_name}')

@@ -1,18 +1,23 @@
 """ Создание и заполнение таблиц в бд """
 
 import json
+import logging
 import os
 
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.methods import engine, session_local
+from database.methods import engine, connection
 from database.models import (TypeTamagochi,
                              TypeFood,
                              Food,
                              Reaction,
                              HidingPlace,
                              Base)
-from utilites.logger import logger
+
+from utilites.logger import get_logger
+
+logger = get_logger('create_and_populate_db', file_level=logging.DEBUG, console_level=logging.INFO)
 
 
 async def initialize_database() -> None:
@@ -33,11 +38,11 @@ async def create_tables() -> None:
 
     try:
         async with engine.begin() as conn:
-            print('Начинаем создание таблиц')
+            logger.debug(f'Создание таблиц...')
             await conn.run_sync(Base.metadata.create_all)
-        logger.info('Таблицы успешно созданы')
+        logger.debug('Таблицы успешно созданы')
     except Exception as e:
-        logger.error(f'Ошибка при создании таблиц: {e}')
+        logger.debug(f'Ошибка при создании таблиц: {e}')
 
 
 async def create_trigger_and_func() -> None:
@@ -67,7 +72,7 @@ async def create_trigger_and_func() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(create_func_sql))
             await conn.execute(text(create_trigger_sql))
-            logger.info('Триггер для user_tamagochi успешно создан')
+            logger.debug('Триггер для user_tamagochi успешно создан')
     except Exception as e:
         logger.error(f'Ошибка при создании триггера: {e}')
 
@@ -99,12 +104,13 @@ async def create_trigger_sick() -> None:
         async with engine.begin() as conn:
             await conn.execute(text(create_func_sql))
             await conn.execute(text(create_trigger_sql))
-            logger.info('Триггер sick для user_tamagochi успешно создан')
+            logger.debug('Триггер sick для user_tamagochi успешно создан')
     except Exception as e:
         logger.error(f'Ошибка при создании триггера: {e}')
 
 
-async def populate_type_food_table() -> None:
+@connection
+async def populate_type_food_table(session: AsyncSession) -> None:
     """ Заполняет таблицу type_food при первом создании БД """
 
     file_path = os.path.join(os.path.dirname(__file__), 'type_food.json')
@@ -113,21 +119,21 @@ async def populate_type_food_table() -> None:
     types_food = data.get('responses', [])
 
     try:
-        async for db_sess in session_local():
-            for type_food in types_food:
-                new = TypeFood(name=type_food['name'],
-                               up_state_name=type_food['up_state_name'],
-                               up_state_point=type_food['up_state_point'],
-                               down_state_name=type_food['down_state_name'],
-                               down_state_point=type_food['down_state_point'],)
-                db_sess.add(new)
-            await db_sess.commit()
-            logger.info('Таблица type_food успешно заполнена')
+        for type_food in types_food:
+            new = TypeFood(name=type_food['name'],
+                           up_state_name=type_food['up_state_name'],
+                           up_state_point=type_food['up_state_point'],
+                           down_state_name=type_food['down_state_name'],
+                           down_state_point=type_food['down_state_point'],)
+            session.add(new)
+        await session.commit()
+        logger.debug('Таблица type_food успешно заполнена')
     except Exception as e:
         logger.error(f'Ошибка при заполнении таблицы type_food: {e}')
 
 
-async def populate_food_table() -> None:
+@connection
+async def populate_food_table(session: AsyncSession) -> None:
     """ Заполняет таблицу food при первом создании БД """
 
     file_path = os.path.join(os.path.dirname(__file__), 'foods.json')
@@ -136,17 +142,17 @@ async def populate_food_table() -> None:
     foods = data.get('responses', [])
 
     try:
-        async for db_sess in session_local():
-            for food in foods:
-                new = Food(name=food['name'], type_food_id=food['type_food_id'])
-                db_sess.add(new)
-            await db_sess.commit()
-            logger.info('Таблица food успешно заполнена')
+        for food in foods:
+            new = Food(name=food['name'], type_food_id=food['type_food_id'])
+            session.add(new)
+        await session.commit()
+        logger.debug('Таблица food успешно заполнена')
     except Exception as e:
         logger.error(f'Ошибка при заполнении таблицы food: {e}')
 
 
-async def populate_reaction_table() -> None:
+@connection
+async def populate_reaction_table(session: AsyncSession) -> None:
     """ Заполняет таблицу reaction """
 
     file_path = os.path.join(os.path.dirname(__file__), 'pet_reaction.json')
@@ -155,20 +161,20 @@ async def populate_reaction_table() -> None:
     action_and_reaction = data.get('responses', [])
 
     try:
-        async for db_sess in session_local():
-            for act_react in action_and_reaction:
-                action = act_react['action']
-                reactions = act_react['reaction']
-                for react in reactions:
-                    new = Reaction(action=action, reaction=react)
-                    db_sess.add(new)
-            await db_sess.commit()
-            logger.info('Таблица reaction успешно заполнена')
+        for act_react in action_and_reaction:
+            action = act_react['action']
+            reactions = act_react['reaction']
+            for react in reactions:
+                new = Reaction(action=action, reaction=react)
+                session.add(new)
+        await session.commit()
+        logger.debug('Таблица reaction успешно заполнена')
     except Exception as e:
         logger.error(f'Ошибка при заполнении таблицы reaction: {e}')
 
 
-async def populate_hiding_place_table() -> None:
+@connection
+async def populate_hiding_place_table(session: AsyncSession) -> None:
     """ Заполняет таблицу hiding_place """
 
     file_path = os.path.join(os.path.dirname(__file__), 'places.json')
@@ -177,17 +183,17 @@ async def populate_hiding_place_table() -> None:
     places_and_reactions = data.get('hiding_places', [])
 
     try:
-        async for db_sess in session_local():
-            for place_react in places_and_reactions:
-                new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
-                db_sess.add(new)
-            await db_sess.commit()
-            logger.info('Таблица hiding_place успешно заполнена')
+        for place_react in places_and_reactions:
+            new = HidingPlace(place=place_react['place'], reaction_found=place_react['reaction_found'])
+            session.add(new)
+        await session.commit()
+        logger.debug('Таблица hiding_place успешно заполнена')
     except Exception as e:
         logger.error(f'Ошибка при заполнении таблицы hiding_place: {e}')
 
 
-async def populate_type_tamagochi() -> None:
+@connection
+async def populate_type_tamagochi(session: AsyncSession) -> None:
     """ Заполняет таблицу type_tamagochi """
 
     file_path = os.path.join(os.path.dirname(__file__), 'pet_types.json')
@@ -196,18 +202,17 @@ async def populate_type_tamagochi() -> None:
     pet_types = data.get('types', [])
 
     try:
-        async for db_sess in session_local():
-            for pet_type in pet_types:
-                new = TypeTamagochi(name=pet_type['name'],
-                                    health_max=pet_type['health_max'],
-                                    happiness_max=pet_type['happiness_max'],
-                                    grooming_max=pet_type['grooming_max'],
-                                    energy_max=pet_type['energy_max'],
-                                    hunger_max=pet_type['hunger_max'],
-                                    image_url=pet_type['image_url'],
-                                    )
-                db_sess.add(new)
-            await db_sess.commit()
-            logger.info('Таблица type_tamagochi успешно заполнена')
+        for pet_type in pet_types:
+            new = TypeTamagochi(name=pet_type['name'],
+                                health_max=pet_type['health_max'],
+                                happiness_max=pet_type['happiness_max'],
+                                grooming_max=pet_type['grooming_max'],
+                                energy_max=pet_type['energy_max'],
+                                hunger_max=pet_type['hunger_max'],
+                                image_url=pet_type['image_url'],
+                                )
+            session.add(new)
+        await session.commit()
+        logger.debug('Таблица type_tamagochi успешно заполнена')
     except Exception as e:
         logger.error(f'Ошибка при заполнении таблицы type_tamagochi: {e}')

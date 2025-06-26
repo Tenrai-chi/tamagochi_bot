@@ -18,7 +18,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     user_telegram_id = Column(BigInteger, nullable=False)
     username = Column(String(255), nullable=True)
-    last_request = Column(DateTime(timezone=True), nullable=True)
+    last_request = Column(DateTime(timezone=True), nullable=True, default=None)
 
     user_pet = relationship('UserTamagochi',
                             back_populates='owner',
