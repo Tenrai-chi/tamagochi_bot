@@ -1,0 +1,16 @@
+version: "3.10"
+services:
+  bot:
+    build: .
+    container_name: bot
+    restart: always
+    ports:
+      - "8080:8000"
+    environment:
+      TELEGRAM_BOT_TOKEN: ""
+      DB_USER: ""
+      DB_PASSWORD: ""
+      DB_NAME: ""
+      DB_HOST: ""
+    stdin_open: true
+    tty: true

@@ -1,8 +1,11 @@
 """ Настройка Celery. Используется для запуска celery beat и celery worker """
 
-import tasks  # Явный импорт, так как без него не видит таски
+import logging
+
 from celery import Celery
-from utilites.logger import logger
+from utilites.logger import get_logger
+
+logger = get_logger('celery_app', file_level=logging.DEBUG, console_level=logging.INFO)
 
 app = Celery('tamagochi_bot',
              broker='amqp://guest:guest@localhost:5672//')
@@ -26,5 +29,5 @@ app.conf.beat_schedule = {
 }
 
 if __name__ == '__main__':
-    logger.info('Запуск celery app!')
+    logger.info('Запуск celery app')
     app.start()

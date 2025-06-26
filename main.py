@@ -1,7 +1,10 @@
 """ Основной файл запуска в докере """
 
-import bot
+from bot.bot import PetBot
+from utilites.logger import setup_default_logging
+
+setup_default_logging()
 
 if __name__ == '__main__':
-    bot = bot.PetBot()
+    bot = PetBot()
     bot.run()
